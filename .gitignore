@@ -1,0 +1,34 @@
+# Ignore Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Ignore virtual environment folders
+.venv/
+env/
+venv/
+
+# Ignore Obsidian workspace settings
+.obsidian/
+
+# Ignore environment variable file (contains secrets)
+.env
+
+# Ignore Hugging Face cache (optional, if stored locally)
+~/.cache/huggingface/
+
+# Ignore system files
+.DS_Store
+
+# Ignore logs or temp files
+*.log
+*.tmp
+
+# Ignore any Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore Qdrant backups (if any are exported)
+*.qdrant
+
+# Optional: VSCode settings if you're using it
+.vscode/
