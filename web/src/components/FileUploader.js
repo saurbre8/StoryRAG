@@ -6,15 +6,17 @@ const FileUploader = ({ onFilesUploaded }) => {
   const [isDragActive, setIsDragActive] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles) => {
-    // Filter for markdown files
+    // Filter for markdown files only
     const markdownFiles = acceptedFiles.filter(file => 
       file.name.endsWith('.md') || file.type === 'text/markdown'
     );
 
     if (markdownFiles.length === 0) {
-      alert('Please upload only .md (markdown) files');
+      alert('No .md files found in the uploaded content. Please upload folders or files containing markdown files.');
       return;
     }
+
+    console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
 
     // Read file contents
     const filesWithContent = await Promise.all(
@@ -24,7 +26,8 @@ const FileUploader = ({ onFilesUploaded }) => {
           name: file.name,
           size: file.size,
           content: content,
-          lastModified: file.lastModified
+          lastModified: file.lastModified,
+          path: file.webkitRelativePath || file.name // Include folder path if available
         };
       })
     );
@@ -34,15 +37,10 @@ const FileUploader = ({ onFilesUploaded }) => {
 
   const { getRootProps, getInputProps, isDragActive: dropzoneActive } = useDropzone({
     onDrop,
-    accept: {
-      'text/markdown': ['.md'],
-      'text/plain': ['.md']
-    },
     multiple: true,
-    onDragEnter: () => setIsDragActive(true),
-    onDragLeave: () => setIsDragActive(false),
-    onDropAccepted: () => setIsDragActive(false),
-    onDropRejected: () => setIsDragActive(false)
+    // Remove file type restrictions to allow any files (we'll filter manually)
+    noClick: false,
+    noKeyboard: false
   });
 
   return (
@@ -51,19 +49,28 @@ const FileUploader = ({ onFilesUploaded }) => {
         {...getRootProps()} 
         className={`dropzone ${dropzoneActive || isDragActive ? 'active' : ''}`}
       >
-        <input {...getInputProps()} />
+        <input 
+          {...getInputProps()} 
+          webkitdirectory=""
+          directory=""
+        />
         <div className="dropzone-content">
           <div className="upload-icon">📁</div>
           {dropzoneActive || isDragActive ? (
             <div>
-              <h3>Drop your markdown files here!</h3>
-              <p>Release to upload</p>
+              <h3>Drop your files or folders here!</h3>
+              <p>Release to upload (only .md files will be processed)</p>
             </div>
           ) : (
             <div>
-              <h3>Drag & drop markdown files here</h3>
+              <h3>Drag & drop files or folders here</h3>
               <p>or <span className="click-text">click to browse</span></p>
-              <p className="file-types">Supports: .md files</p>
+              <p className="file-types">Automatically filters for .md files only</p>
+              <div className="upload-options">
+                <div className="option">📄 Individual files</div>
+                <div className="option">📂 Entire folders</div>
+                <div className="option">🗂️ Multiple folders</div>
+              </div>
             </div>
           )}
         </div>

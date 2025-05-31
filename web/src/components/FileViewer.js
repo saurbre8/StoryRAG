@@ -7,7 +7,8 @@ const FileViewer = ({ files, onClear }) => {
 
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    file.content.toLowerCase().includes(searchTerm.toLowerCase())
+    file.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (file.path && file.path.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const formatFileSize = (bytes) => {
@@ -20,6 +21,13 @@ const FileViewer = ({ files, onClear }) => {
 
   const formatDate = (timestamp) => {
     return new Date(timestamp).toLocaleDateString();
+  };
+
+  const getDisplayPath = (file) => {
+    if (file.path && file.path !== file.name) {
+      return file.path;
+    }
+    return file.name;
   };
 
   return (
@@ -55,6 +63,9 @@ const FileViewer = ({ files, onClear }) => {
                 >
                   <div className="file-info">
                     <div className="file-name">{file.name}</div>
+                    {file.path && file.path !== file.name && (
+                      <div className="file-path">{file.path}</div>
+                    )}
                     <div className="file-meta">
                       {formatFileSize(file.size)} • {formatDate(file.lastModified)}
                     </div>
@@ -69,6 +80,9 @@ const FileViewer = ({ files, onClear }) => {
           {selectedFile ? (
             <div>
               <h3>Preview: {selectedFile.name}</h3>
+              {selectedFile.path && selectedFile.path !== selectedFile.name && (
+                <div className="preview-path">Path: {selectedFile.path}</div>
+              )}
               <div className="file-stats">
                 <span>Size: {formatFileSize(selectedFile.size)}</span>
                 <span>Words: {selectedFile.content.split(/\s+/).length}</span>

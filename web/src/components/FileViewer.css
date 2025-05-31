@@ -101,7 +101,8 @@
   color: white;
 }
 
-.file-item.selected .file-meta {
+.file-item.selected .file-meta,
+.file-item.selected .file-path {
   color: rgba(255,255,255,0.8);
 }
 
@@ -109,6 +110,14 @@
   font-weight: 600;
   margin-bottom: 5px;
   word-break: break-word;
+}
+
+.file-path {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin-bottom: 5px;
+  font-family: monospace;
+  opacity: 0.8;
 }
 
 .file-meta {
@@ -126,6 +135,17 @@
   margin: 0 0 15px 0;
   color: #2d3748;
   font-size: 1.3rem;
+}
+
+.preview-path {
+  font-size: 0.9rem;
+  color: #718096;
+  font-family: monospace;
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background: #f7fafc;
+  border-radius: 4px;
+  border-left: 3px solid #667eea;
 }
 
 .file-stats {

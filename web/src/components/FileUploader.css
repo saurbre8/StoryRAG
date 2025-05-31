@@ -61,7 +61,25 @@
 .file-types {
   font-size: 0.9rem;
   color: #a0aec0;
-  margin-top: 15px;
+  margin: 15px 0;
+}
+
+.upload-options {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.option {
+  font-size: 0.9rem;
+  color: #4a5568;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {
@@ -79,5 +97,15 @@
   
   .dropzone p {
     font-size: 1rem;
+  }
+  
+  .upload-options {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .option {
+    font-size: 0.8rem;
   }
 }
