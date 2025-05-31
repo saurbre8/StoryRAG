@@ -9,12 +9,13 @@ from llama_index.llms.openai import OpenAI
 from llama_index.core.settings import Settings
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from sentence_transformers import SentenceTransformer
+from llama_index.core.prompts import PromptTemplate
 
 # === Load secrets ===
 load_dotenv()
 qdrant_api_key = os.getenv("QDRANT_API_KEY")
 qdrant_host = os.getenv("QDRANT_HOST")
-collection_name = "lore_test"
+collection_name = "Egothare"
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # === Custom MiniLM Embedding ===
@@ -57,7 +58,25 @@ Settings.embed_model = embed_model
 
 # === Build index & query engine ===
 index = VectorStoreIndex.from_vector_store(vector_store)
-query_engine = index.as_query_engine(similarity_top_k=3)
+
+# Custom prompt template for creativity
+qa_prompt_tmpl = (
+    "You are a creative worldbuilding assistant for the Egothare fantasy setting. "
+    "Use the context information below as inspiration, but feel free to extrapolate, "
+    "create new details, and build upon the existing lore in creative ways. "
+    "When creating characters or locations, describe what they look like. "
+    "with your own creative additions that feel consistent with the world.\n\n"
+    "Context information:\n"
+    "{context_str}\n\n"
+    "Query: {query_str}\n\n"
+    "Answer creatively while staying true to the world's tone and themes:"
+)
+
+qa_prompt = PromptTemplate(qa_prompt_tmpl)
+query_engine = index.as_query_engine(
+    similarity_top_k=3,
+    text_qa_template=qa_prompt
+)
 
 # === Run interactive chat loop ===
 if __name__ == "__main__":
