@@ -33,6 +33,30 @@
   gap: 30px;
 }
 
+.app-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.intro-section {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.intro-section h2 {
+  font-size: 2.5rem;
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.intro-section p {
+  font-size: 1.2rem;
+  color: #718096;
+  margin: 0;
+}
+
 @media (max-width: 768px) {
   .App {
     padding: 10px;
@@ -44,5 +68,17 @@
   
   .App-header p {
     font-size: 1rem;
+  }
+  
+  .app-content {
+    padding: 1rem;
+  }
+  
+  .intro-section h2 {
+    font-size: 2rem;
+  }
+  
+  .intro-section p {
+    font-size: 1.1rem;
   }
 } 
