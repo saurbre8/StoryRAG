@@ -110,6 +110,9 @@
   font-weight: 600;
   margin-bottom: 5px;
   word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .file-path {
@@ -186,6 +189,46 @@
   text-align: center;
   color: #a0aec0;
   font-style: italic;
+}
+
+.s3-badge, .local-badge, .error-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.s3-badge {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.local-badge {
+  background: #bee3f8;
+  color: #2a69ac;
+}
+
+.error-badge {
+  background: #fed7d7;
+  color: #c53030;
+}
+
+.upload-error {
+  font-size: 0.8rem;
+  color: #e53e3e;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.s3-info-preview {
+  font-size: 0.9rem;
+  color: #48bb78;
+  margin-bottom: 15px;
+  padding: 8px 12px;
+  background: #f0fff4;
+  border-radius: 4px;
+  border-left: 3px solid #48bb78;
+  word-break: break-all;
 }
 
 @media (max-width: 768px) {

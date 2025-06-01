@@ -62,13 +62,27 @@ const FileViewer = ({ files, onClear }) => {
                   onClick={() => setSelectedFile(file)}
                 >
                   <div className="file-info">
-                    <div className="file-name">{file.name}</div>
+                    <div className="file-name">
+                      {file.name}
+                      {file.uploadedToS3 ? (
+                        <span className="s3-badge">☁️ S3</span>
+                      ) : file.uploadError ? (
+                        <span className="error-badge">❌ Failed</span>
+                      ) : (
+                        <span className="local-badge">💻 Local</span>
+                      )}
+                    </div>
                     {file.path && file.path !== file.name && (
                       <div className="file-path">{file.path}</div>
                     )}
                     <div className="file-meta">
                       {formatFileSize(file.size)} • {formatDate(file.lastModified)}
                     </div>
+                    {file.uploadError && (
+                      <div className="upload-error">
+                        Upload failed: {file.uploadError}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}
@@ -83,10 +97,16 @@ const FileViewer = ({ files, onClear }) => {
               {selectedFile.path && selectedFile.path !== selectedFile.name && (
                 <div className="preview-path">Path: {selectedFile.path}</div>
               )}
+              {selectedFile.s3Location && (
+                <div className="s3-info-preview">
+                  <strong>S3 Location:</strong> {selectedFile.s3Location}
+                </div>
+              )}
               <div className="file-stats">
                 <span>Size: {formatFileSize(selectedFile.size)}</span>
                 <span>Words: {selectedFile.content.split(/\s+/).length}</span>
                 <span>Lines: {selectedFile.content.split('\n').length}</span>
+                <span>Status: {selectedFile.uploadedToS3 ? 'Stored in S3' : 'Local only'}</span>
               </div>
               <pre className="file-content">{selectedFile.content}</pre>
             </div>
