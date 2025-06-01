@@ -20,7 +20,7 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 HG_FACE_READ_TOKEN = os.getenv("HG_FACE_READ_TOKEN")
 COLLECTION_NAME = "lore_test"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "bge-small-en-v1.5"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 
@@ -126,4 +126,4 @@ if __name__ == "__main__":
         print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
         upload_to_qdrant(embedded, client, COLLECTION_NAME)
 
-        print("✅ Done.")
+        print("✅ Done.") 

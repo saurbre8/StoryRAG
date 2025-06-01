@@ -22,7 +22,7 @@ openai_api_key = os.getenv("OPENAI_API_KEY")
 class MiniLMMEmbedding(BaseEmbedding):
     def __init__(self):
         super().__init__()
-        self._model = SentenceTransformer("all-MiniLM-L6-v2")
+        self._model = SentenceTransformer("bge-small-en-v1.5")
 
     def _get_text_embedding(self, text: str):
         return self._model.encode(text).tolist()
