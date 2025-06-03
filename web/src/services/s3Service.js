@@ -89,7 +89,7 @@ class S3Service {
       throw new Error('S3 service not initialized');
     }
 
-    const key = `${this.getUserPrefix(userId)}${Date.now()}-${fileName}`;
+    const key = `${this.getUserPrefix(userId)}${fileName}`;
     
     const uploadParams = {
       Bucket: this.bucketName,
