@@ -2,15 +2,33 @@ import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
+import ProjectManager from './ProjectManager';
 import './FileUploader.css';
 
 const FileUploader = ({ onFilesUploaded }) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
+  const [selectedProject, setSelectedProject] = useState(null);
   const auth = useAuth();
 
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    console.log('Selected project:', project);
+  };
+
+  const handleProjectCreate = (project) => {
+    setSelectedProject(project);
+    console.log('Created and selected project:', project);
+  };
+
   const onDrop = useCallback(async (acceptedFiles) => {
+    // Check if a project is selected
+    if (!selectedProject) {
+      alert('Please select a project before uploading files.');
+      return;
+    }
+
     // Filter for markdown files only
     const markdownFiles = acceptedFiles.filter(file => 
       file.name.endsWith('.md') || file.type === 'text/markdown'
@@ -37,7 +55,7 @@ const FileUploader = ({ onFilesUploaded }) => {
         throw new Error('Failed to initialize S3 service');
       }
 
-      // Process files with both local reading and S3 upload
+      // Process files with both local reading and S3 upload to project
       const filesWithContent = await Promise.all(
         markdownFiles.map(async (file, index) => {
           try {
@@ -48,11 +66,12 @@ const FileUploader = ({ onFilesUploaded }) => {
             const progressKey = `file-${index}`;
             setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
 
-            // Upload to S3
-            const uploadResult = await s3Service.uploadFileContent(
+            // Upload to S3 in the selected project
+            const uploadResult = await s3Service.uploadFileContentToProject(
               file.name, 
               content, 
               userId,
+              selectedProject.name,
               (percent) => {
                 setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
               }
@@ -73,6 +92,7 @@ const FileUploader = ({ onFilesUploaded }) => {
               path: file.webkitRelativePath || file.name,
               s3Key: uploadResult.key,
               s3Location: uploadResult.location,
+              projectName: selectedProject.name,
               uploadedToS3: true
             };
           } catch (error) {
@@ -86,6 +106,7 @@ const FileUploader = ({ onFilesUploaded }) => {
               content: content,
               lastModified: file.lastModified,
               path: file.webkitRelativePath || file.name,
+              projectName: selectedProject.name,
               uploadedToS3: false,
               uploadError: error.message
             };
@@ -101,9 +122,9 @@ const FileUploader = ({ onFilesUploaded }) => {
       const failCount = filesWithContent.length - successCount;
       
       if (failCount === 0) {
-        alert(`Successfully uploaded ${successCount} files to S3!`);
+        alert(`Successfully uploaded ${successCount} files to project "${selectedProject.name}"!`);
       } else {
-        alert(`Uploaded ${successCount} files successfully. ${failCount} files failed to upload to S3 but are available locally.`);
+        alert(`Uploaded ${successCount} files successfully to project "${selectedProject.name}". ${failCount} files failed to upload to S3 but are available locally.`);
       }
 
     } catch (error) {
@@ -113,12 +134,12 @@ const FileUploader = ({ onFilesUploaded }) => {
       setIsUploading(false);
       setUploadProgress({});
     }
-  }, [onFilesUploaded, auth.user]);
+  }, [onFilesUploaded, auth.user, selectedProject]);
 
   const { getRootProps, getInputProps, isDragActive: dropzoneActive } = useDropzone({
     onDrop,
     multiple: true,
-    disabled: isUploading,
+    disabled: isUploading || !selectedProject,
     noClick: false,
     noKeyboard: false
   });
@@ -131,9 +152,15 @@ const FileUploader = ({ onFilesUploaded }) => {
 
   return (
     <div className="file-uploader">
+      <ProjectManager 
+        selectedProject={selectedProject}
+        onProjectSelect={handleProjectSelect}
+        onProjectCreate={handleProjectCreate}
+      />
+      
       <div 
         {...getRootProps()} 
-        className={`dropzone ${dropzoneActive || isDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''}`}
+        className={`dropzone ${dropzoneActive || isDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''} ${!selectedProject ? 'disabled' : ''}`}
       >
         <input 
           {...getInputProps()} 
@@ -141,10 +168,17 @@ const FileUploader = ({ onFilesUploaded }) => {
           directory=""
         />
         <div className="dropzone-content">
-          {isUploading ? (
+          {!selectedProject ? (
+            <div>
+              <div className="upload-icon">⚠️</div>
+              <h3>Select a Project First</h3>
+              <p>Please select or create a project above before uploading files</p>
+              <p className="help-text">Projects help organize your markdown files in S3</p>
+            </div>
+          ) : isUploading ? (
             <div className="upload-progress">
               <div className="upload-icon">⬆️</div>
-              <h3>Uploading to S3...</h3>
+              <h3>Uploading to project "{selectedProject.name}"...</h3>
               <div className="progress-bar">
                 <div 
                   className="progress-fill" 
@@ -162,7 +196,7 @@ const FileUploader = ({ onFilesUploaded }) => {
               {dropzoneActive || isDragActive ? (
                 <div>
                   <h3>Drop your files or folders here!</h3>
-                  <p>Release to upload (only .md files will be processed)</p>
+                  <p>Release to upload to "{selectedProject.name}" (only .md files will be processed)</p>
                   <p className="s3-info">Files will be securely stored in your S3 bucket</p>
                 </div>
               ) : (
@@ -170,7 +204,7 @@ const FileUploader = ({ onFilesUploaded }) => {
                   <h3>Drag & drop files or folders here</h3>
                   <p>or <span className="click-text">click to browse</span></p>
                   <p className="file-types">Automatically filters for .md files only</p>
-                  <p className="s3-info">✅ Files will be securely stored in AWS S3</p>
+                  <p className="s3-info">✅ Files will be stored in project: <strong>{selectedProject.name}</strong></p>
                   <div className="upload-options">
                     <div className="option">📄 Individual files</div>
                     <div className="option">📂 Entire folders</div>

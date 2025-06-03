@@ -37,6 +37,241 @@ class S3Service {
     return `users/${userId}/`;
   }
 
+  // Generate a project-specific key prefix
+  getProjectPrefix(userId, projectName) {
+    return `users/${userId}/${projectName}/`;
+  }
+
+  // Create a project folder (by uploading a .project metadata file)
+  async createProject(userId, projectName, description = '') {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const key = `${this.getProjectPrefix(userId, projectName)}.project`;
+    const projectMetadata = {
+      name: projectName,
+      description: description,
+      createdAt: new Date().toISOString(),
+      userId: userId
+    };
+
+    const uploadParams = {
+      Bucket: this.bucketName,
+      Key: key,
+      Body: JSON.stringify(projectMetadata, null, 2),
+      ContentType: 'application/json',
+      Metadata: {
+        'project-name': projectName,
+        'created-timestamp': new Date().toISOString(),
+        'user-id': userId
+      }
+    };
+
+    try {
+      const result = await this.s3.upload(uploadParams).promise();
+      console.log('Project created successfully:', projectName);
+      
+      return {
+        success: true,
+        projectName: projectName,
+        key: key,
+        location: result.Location,
+        etag: result.ETag
+      };
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw new Error(`Project creation failed: ${error.message}`);
+    }
+  }
+
+  // List user's projects by scanning S3 structure
+  async listUserProjects(userId) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const listParams = {
+      Bucket: this.bucketName,
+      Prefix: `users/${userId}/`,
+      Delimiter: '/'
+    };
+
+    try {
+      const result = await this.s3.listObjectsV2(listParams).promise();
+      
+      // Extract project names from common prefixes (folders)
+      const projectFolders = result.CommonPrefixes?.map(prefix => {
+        const parts = prefix.Prefix.split('/');
+        return parts[parts.length - 2]; // Get project name from path
+      }) || [];
+
+      // Get project metadata for each project
+      const projectDetails = await Promise.all(
+        projectFolders.map(async (projectName) => {
+          try {
+            const projectMetadataKey = `users/${userId}/${projectName}/.project`;
+            const projectFile = await this.downloadFile(projectMetadataKey);
+            const metadata = JSON.parse(projectFile.content);
+            
+            // Also get file count for this project
+            const fileCount = await this.getProjectFileCount(userId, projectName);
+            
+            return {
+              name: projectName,
+              description: metadata.description || '',
+              createdAt: metadata.createdAt || null,
+              fileCount: fileCount,
+              ...metadata
+            };
+          } catch (error) {
+            // If no .project file exists, return basic info
+            console.log(`No metadata found for project ${projectName}, using defaults`);
+            const fileCount = await this.getProjectFileCount(userId, projectName);
+            
+            return {
+              name: projectName,
+              description: '',
+              createdAt: null,
+              fileCount: fileCount
+            };
+          }
+        })
+      );
+
+      return projectDetails.sort((a, b) => {
+        // Sort by creation date, newest first
+        if (!a.createdAt && !b.createdAt) return 0;
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+    } catch (error) {
+      console.error('Error listing projects:', error);
+      throw new Error(`Failed to list projects: ${error.message}`);
+    }
+  }
+
+  // Get count of files in a project
+  async getProjectFileCount(userId, projectName) {
+    try {
+      const listParams = {
+        Bucket: this.bucketName,
+        Prefix: this.getProjectPrefix(userId, projectName)
+      };
+
+      const result = await this.s3.listObjectsV2(listParams).promise();
+      // Filter out .project metadata files
+      const fileCount = result.Contents?.filter(item => !item.Key.endsWith('.project')).length || 0;
+      return fileCount;
+    } catch (error) {
+      console.error('Error getting project file count:', error);
+      return 0;
+    }
+  }
+
+  // Upload file content to a specific project
+  async uploadFileContentToProject(fileName, content, userId, projectName, onProgress = null) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const key = `${this.getProjectPrefix(userId, projectName)}${fileName}`;
+    
+    const uploadParams = {
+      Bucket: this.bucketName,
+      Key: key,
+      Body: content,
+      ContentType: 'text/markdown',
+      Metadata: {
+        'original-name': fileName,
+        'upload-timestamp': new Date().toISOString(),
+        'content-length': content.length.toString(),
+        'project-name': projectName,
+        'user-id': userId
+      }
+    };
+
+    try {
+      const upload = this.s3.upload(uploadParams);
+      
+      // Track upload progress if callback provided
+      if (onProgress) {
+        upload.on('httpUploadProgress', (progress) => {
+          const percentCompleted = Math.round((progress.loaded * 100) / progress.total);
+          onProgress(percentCompleted);
+        });
+      }
+
+      const result = await upload.promise();
+      console.log('File content uploaded to project successfully:', result.Location);
+      
+      return {
+        success: true,
+        key: key,
+        location: result.Location,
+        etag: result.ETag,
+        projectName: projectName
+      };
+    } catch (error) {
+      console.error('Error uploading file content to project:', error);
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+  }
+
+  // List files in a specific project
+  async listProjectFiles(userId, projectName) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const listParams = {
+      Bucket: this.bucketName,
+      Prefix: this.getProjectPrefix(userId, projectName)
+    };
+
+    try {
+      const result = await this.s3.listObjectsV2(listParams).promise();
+      return result.Contents
+        .filter(item => !item.Key.endsWith('.project')) // Exclude metadata files
+        .map(item => ({
+          key: item.Key,
+          name: item.Key.split('/').pop(),
+          size: item.Size,
+          lastModified: item.LastModified,
+          etag: item.ETag,
+          projectName: projectName
+        }));
+    } catch (error) {
+      console.error('Error listing project files:', error);
+      throw new Error(`Failed to list project files: ${error.message}`);
+    }
+  }
+
+  // Get all files from all projects for a user
+  async getAllUserProjectFiles(userId) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    try {
+      // First get all projects
+      const projects = await this.listUserProjects(userId);
+      
+      // Then get files for each project
+      const allFiles = [];
+      for (const project of projects) {
+        const projectFiles = await this.listProjectFiles(userId, project.name);
+        allFiles.push(...projectFiles);
+      }
+      
+      return allFiles;
+    } catch (error) {
+      console.error('Error getting all user project files:', error);
+      throw new Error(`Failed to get user files: ${error.message}`);
+    }
+  }
+
   // Upload a file to S3
   async uploadFile(file, userId, onProgress = null) {
     if (!this.s3) {

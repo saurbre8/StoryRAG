@@ -133,6 +133,12 @@
   margin: 10px 0;
 }
 
+.help-text {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  margin: 5px 0;
+}
+
 @media (max-width: 768px) {
   .dropzone {
     padding: 40px 15px;
