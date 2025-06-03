@@ -11,65 +11,83 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from dotenv import load_dotenv
 from huggingface_hub import login
-import os
 import sys
 import jwt
 import requests
 import boto3
 from io import BytesIO
 
+# === ENVIRONMENT SETUP ===
 load_dotenv()
 
-# === CONFIG ===
-VAULT_PATH = "/Users/zachburns/Desktop/StoryRAG/lore"
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 HG_FACE_READ_TOKEN = os.getenv("HG_FACE_READ_TOKEN")
-COLLECTION_NAME = "lore_test"
+COLLECTION_NAME = "Egothare_v2"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
-#JWT_TOKEN=
 JWT_TOKEN = os.getenv("COGNITO_TOKEN")
-REGION = "us-east-1"  # your Cognito region
-USER_POOL_ID = "us-east-1_3GBn9c4Qm" 
+REGION = "us-east-1"
+USER_POOL_ID = "us-east-1_3GBn9c4Qm"
 AUDIENCE = os.getenv("COGNITO_CLIENT_ID")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+user_id="44b84468-f061-70d7-2866-1c0989430fbf"
 
-#HG_FACE login
+s3_client = boto3.client("s3")
+
+# Hugging Face Login
 if HG_FACE_READ_TOKEN:
     login(token=HG_FACE_READ_TOKEN)
 else:
     raise ValueError("❌ Hugging Face token not found. Please set HG_FACE_READ_TOKEN in your .env file.")
 
-# === HELPERS ===
+#=== HELPERS ===
 def hash_to_uuid(text):
     return str(uuid.UUID(hashlib.sha256(text.encode("utf-8")).hexdigest()[0:32]))
 
-def get_cognito_public_keys(region, user_pool_id):
-    jwks_url = f'https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json'
-    return requests.get(jwks_url).json()
+# def get_cognito_public_keys(region, user_pool_id):
+#     jwks_url = f'https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json'
+#     return requests.get(jwks_url).json()
 
-def decode_cognito_token(token, region, user_pool_id):
-    jwks = get_cognito_public_keys(region, user_pool_id)
-    unverified_header = jwt.get_unverified_header(token)
-    key = next(k for k in jwks['keys'] if k['kid'] == unverified_header['kid'])
-    public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
-    return jwt.decode(token, public_key, algorithms=["RS256"], audience=AUDIENCE)
+# def decode_cognito_token(token, region, user_pool_id):
+#     jwks = get_cognito_public_keys(region, user_pool_id)
+#     unverified_header = jwt.get_unverified_header(token)
+#     key = next(k for k in jwks['keys'] if k['kid'] == unverified_header['kid'])
+#     public_key = jwt.algorithms.RSAAlgorithm.from_jwk(key)
+#     return jwt.decode(token, public_key, algorithms=["RS256"], audience=AUDIENCE)
 
-try:
-    decoded = decode_cognito_token(JWT_TOKEN, REGION, USER_POOL_ID)
-    user_id = decoded["sub"]
-except Exception as e:
-    print("❌ Failed to decode token:", e)
-    sys.exit(1)
+# try:
+#     decoded = decode_cognito_token(JWT_TOKEN, REGION, USER_POOL_ID)
+#     user_id = decoded["sub"]
+# except Exception as e:
+#     print("❌ Failed to decode token:", e)
+#     sys.exit(1)
 
-
-
-# === STEP 1: Load & Chunk Markdown ===
-def load_and_chunk_markdown(folder_path):
+# === STEP 1: Load & Chunk Markdown from S3 ===
+def load_and_chunk_markdown_from_s3(bucket_name, user_id):
     chunks = []
-    for file_path in Path(folder_path).rglob("*.md"):
-        text = Path(file_path).read_text(encoding="utf-8")
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"users/{user_id}/")
+
+    # if "Contents" not in response:
+    #     print(f"❌ No contents found under s3://{bucket_name}/{user_id}/")
+    # else:
+    #     print(f"✅ Found {len(response['Contents'])} objects:")
+    #     for obj in response["Contents"]:
+    #         print(" -", obj["Key"])
+    
+    
+    for obj in response["Contents"]:
+        print(" -", obj["Key"])
+    
+    for obj in response.get("Contents", []):
+        key = obj["Key"]
+        if not key.endswith(".md"):
+            continue
+
+        s3_response = s3_client.get_object(Bucket=bucket_name, Key=key)
+        text = s3_response["Body"].read().decode("utf-8")
+
         html = markdown(text)
         plain = BeautifulSoup(html, "html.parser").get_text()
         words = plain.split()
@@ -78,12 +96,18 @@ def load_and_chunk_markdown(folder_path):
             chunk_text = " ".join(words[i:i + CHUNK_SIZE])
             if chunk_text.strip():
                 chunk_id = hash_to_uuid(chunk_text)
+                parts = key.split("/")
+                project_folder = parts[2] if len(parts) > 3 else "root"
+                filename = parts[-1]
+
                 chunks.append({
                     "id": chunk_id,
                     "text": chunk_text,
                     "metadata": {
-                        "source": str(file_path.relative_to(folder_path)),
-                        "user_id": user_id
+                        "user_id": user_id,
+                        "project_folder": project_folder,
+                        "filename": filename,
+                        "source": key
                     }
                 })
     return chunks
@@ -139,10 +163,10 @@ def upload_to_qdrant(embedded_chunks, client, collection_name):
 
     client.upsert(collection_name=collection_name, points=points)
 
-# === MAIN SCRIPT === python3 load_chunk_embed_qdrant.py
+# === MAIN SCRIPT ===
 if __name__ == "__main__":
-    print(f"📂 Loading and chunking Markdown files from {VAULT_PATH}...")
-    chunks = load_and_chunk_markdown(VAULT_PATH)
+    print(f"📂 Loading and chunking Markdown files from s3://{S3_BUCKET_NAME}/{user_id}/")
+    chunks = load_and_chunk_markdown_from_s3(S3_BUCKET_NAME, user_id)
 
     client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
 
@@ -158,4 +182,4 @@ if __name__ == "__main__":
         print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
         upload_to_qdrant(embedded, client, COLLECTION_NAME)
 
-        print("✅ Done.") 
+        print("✅ Done.")
