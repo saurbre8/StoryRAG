@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "aws-sdk": "^2.1692.0",
+    "oidc-client-ts": "^3.2.1",
+    "react-oidc-context": "^3.3.0"
+  }
+}

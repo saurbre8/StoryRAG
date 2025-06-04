@@ -32,4 +32,5 @@ venv/
 
 # Optional: VSCode settings if you're using it
 .vscode/
+
 node_modules
