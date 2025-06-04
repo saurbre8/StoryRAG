@@ -34,4 +34,4 @@ venv/
 .vscode/
 
 node_modules
-
+storyrag-key.pem
