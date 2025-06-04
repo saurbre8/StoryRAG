@@ -5,3 +5,8 @@ I currently work remotely as a data analyst, so I would like a place that has a 
 My interests include the outdoors, music, and water sports. I enjoy thrifting & reworking clothing and furniture, as well as cooking.
 
 Would definitely like to be friends with my roommate, so reach out if you think we would get along!
+
+Questions about room:
+is there anywhere to keep my bike?
+is there additional storage overall?
+can you send me address so I can see right where it is

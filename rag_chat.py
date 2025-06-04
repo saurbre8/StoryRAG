@@ -1,5 +1,7 @@
 #pip install -r requirements.txt
 import os
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+from llama_index.core.retrievers import VectorIndexRetriever
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
 from llama_index.core import VectorStoreIndex
@@ -10,19 +12,21 @@ from llama_index.core.settings import Settings
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from sentence_transformers import SentenceTransformer
 from llama_index.core.prompts import PromptTemplate
+from llama_index.core.vector_stores.types import MetadataFilter, MetadataFilters
 
 # === Load secrets ===
 load_dotenv()
 qdrant_api_key = os.getenv("QDRANT_API_KEY")
 qdrant_host = os.getenv("QDRANT_HOST")
-collection_name = "Egothare"
+collection_name = "splitter"
 openai_api_key = os.getenv("OPENAI_API_KEY")
+
 
 # === Custom MiniLM Embedding ===
 class MiniLMMEmbedding(BaseEmbedding):
     def __init__(self):
         super().__init__()
-        self._model = SentenceTransformer("all-MiniLM-L6-v2")
+        self._model = SentenceTransformer("BAAI/bge-small-en-v1.5")
 
     def _get_text_embedding(self, text: str):
         return self._model.encode(text).tolist()
@@ -71,10 +75,32 @@ qa_prompt_tmpl = (
     "Query: {query_str}\n\n"
     "Answer creatively while staying true to the world's tone and themes:"
 )
-
 qa_prompt = PromptTemplate(qa_prompt_tmpl)
-query_engine = index.as_query_engine(
+# === Metadata filters ===
+user_id = os.getenv("USER_ID")  # or hardcode like "user_123"
+project_folder = os.getenv("PROJECT_FOLDER")  # or hardcode like "egothare"
+
+metadata_filter = Filter(
+    must=[
+        FieldCondition(key="user_id", match=MatchValue(value=user_id)),
+        FieldCondition(key="project_folder", match=MatchValue(value=project_folder)),
+    ]
+)
+
+
+retriever = VectorIndexRetriever(
+    index=index,
     similarity_top_k=3,
+    filters=MetadataFilters(
+        filters=[
+            MetadataFilter(key="user_id", value=str(user_id)),
+            MetadataFilter(key="project_folder", value=project_folder),
+        ]
+    )
+)
+
+query_engine = RetrieverQueryEngine.from_args(
+    retriever=retriever,
     text_qa_template=qa_prompt
 )
 
@@ -88,4 +114,4 @@ if __name__ == "__main__":
             print(f"\n💬 {answer.response}")
         except KeyboardInterrupt:
             print("\n👋 Goodbye!")
-            break
+            break 
