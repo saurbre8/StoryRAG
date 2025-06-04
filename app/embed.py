@@ -47,22 +47,14 @@ else:
 def hash_to_uuid(text):
     return str(uuid.UUID(hashlib.sha256(text.encode("utf-8")).hexdigest()[0:32]))
 
-
-def load_and_chunk_markdown_from_s3(bucket_name, user_id):
+def load_and_chunk_markdown_from_s3(bucket_name, user_id, project_folder=None):
     chunks = []
-    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"users/{user_id}/")
+    prefix = f"users/{user_id}/"
+    if project_folder:
+        prefix += f"{project_folder}/"
 
-    if "Contents" not in response:
-        print(f"❌ No contents found under s3://{bucket_name}/{user_id}/")
-    else:
-        print(f"✅ Found {len(response['Contents'])} objects:")
-        for obj in response["Contents"]:
-            print(" -", obj["Key"])
-    
-    
-    for obj in response["Contents"]:
-        print(" -", obj["Key"])
-    
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+
     for obj in response.get("Contents", []):
         key = obj["Key"]
         if not key.endswith(".md"):
@@ -80,7 +72,7 @@ def load_and_chunk_markdown_from_s3(bucket_name, user_id):
             if chunk_text.strip():
                 chunk_id = hash_to_uuid(chunk_text)
                 parts = key.split("/")
-                project_folder = parts[2] if len(parts) > 3 else "root"
+                file_project_folder = parts[2] if len(parts) > 3 else "root"
                 filename = parts[-1]
 
                 chunks.append({
@@ -88,7 +80,7 @@ def load_and_chunk_markdown_from_s3(bucket_name, user_id):
                     "text": chunk_text,
                     "metadata": {
                         "user_id": str(user_id),
-                        "project_folder": project_folder,
+                        "project_folder": file_project_folder,
                         "filename": filename,
                         "source": key
                     }
@@ -168,23 +160,23 @@ def upload_to_qdrant(embedded_chunks, client, collection_name):
     client.upsert(collection_name=collection_name, points=points)
 
 # === MAIN SCRIPT ===
-if __name__ == "__main__":
+def embed_s3_markdown(user_id: str, project_folder: str = None):
     print(f"📂 Loading and chunking Markdown files from s3://{S3_BUCKET_NAME}/{user_id}/")
-    chunks = load_and_chunk_markdown_from_s3(S3_BUCKET_NAME, user_id)
+    chunks = load_and_chunk_markdown_from_s3(S3_BUCKET_NAME, user_id, project_folder)
 
     client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
 
     print("🧠 Filtering out already uploaded chunks...")
-    new_chunks = chunks
-    #new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks)
+    #new_chunks = chunks  # skip deduping for now
+    new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks)
 
     if not new_chunks:
-        print("✅ No new content to upload.")
-    else:
-        print(f"🧠 Embedding {len(new_chunks)} new chunks...")
-        embedded = embed_chunks(new_chunks, EMBEDDING_MODEL)
+        return {"message": "✅ No new content to upload."}
 
-        print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
-        upload_to_qdrant(embedded, client, COLLECTION_NAME)
+    print(f"🧠 Embedding {len(new_chunks)} new chunks...")
+    embedded = embed_chunks(new_chunks, EMBEDDING_MODEL)
 
-        print("✅ Done.")
+    print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
+    upload_to_qdrant(embedded, client, COLLECTION_NAME)
+
+    return {"message": f"✅ Uploaded {len(embedded)} chunks to Qdrant."}
