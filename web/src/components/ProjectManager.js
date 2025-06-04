@@ -1,0 +1,227 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from 'react-oidc-context';
+import s3Service from '../services/s3Service';
+import './ProjectManager.css';
+
+const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) => {
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (auth.user) {
+      loadProjectsFromS3();
+    }
+  }, [auth.user]);
+
+  const loadProjectsFromS3 = async () => {
+    try {
+      setIsLoading(true);
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      if (!userId) {
+        console.log('No user ID found, skipping project load');
+        return;
+      }
+
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      console.log('Loading projects from S3 for user:', userId);
+      const userProjects = await s3Service.listUserProjects(userId);
+      console.log('Loaded projects:', userProjects);
+      setProjects(userProjects);
+
+      // If no project is selected but we have projects, optionally select the first one
+      if (!selectedProject && userProjects.length > 0) {
+        // onProjectSelect(userProjects[0]); // Uncomment if you want to auto-select first project
+      }
+    } catch (error) {
+      console.error('Failed to load projects from S3:', error);
+      // Don't show alert on load failure, just log it
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    
+    if (!newProjectName.trim()) {
+      alert('Project name is required');
+      return;
+    }
+
+    // Validate project name (no special characters except hyphens and underscores)
+    const projectNameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!projectNameRegex.test(newProjectName)) {
+      alert('Project name can only contain letters, numbers, hyphens, and underscores');
+      return;
+    }
+
+    // Check if project already exists
+    if (projects.some(p => p.name === newProjectName)) {
+      alert('A project with this name already exists');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      console.log('Creating project:', newProjectName);
+      await s3Service.createProject(userId, newProjectName, newProjectDescription);
+      
+      // Reload projects from S3
+      await loadProjectsFromS3();
+      
+      // Select the new project
+      const newProject = { 
+        name: newProjectName, 
+        description: newProjectDescription,
+        createdAt: new Date().toISOString(),
+        fileCount: 0
+      };
+      onProjectSelect(newProject);
+      onProjectCreate?.(newProject);
+      
+      // Reset form
+      setNewProjectName('');
+      setNewProjectDescription('');
+      setShowCreateForm(false);
+      
+      alert(`Project "${newProjectName}" created successfully!`);
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      alert(`Failed to create project: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleProjectClick = (project) => {
+    onProjectSelect(project);
+  };
+
+  return (
+    <div className="project-manager">
+      <div className="project-header">
+        <h3>Projects</h3>
+        <button 
+          className="create-project-btn"
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          disabled={isLoading || !auth.user}
+        >
+          + New Project
+        </button>
+      </div>
+
+      {showCreateForm && (
+        <form className="create-project-form" onSubmit={handleCreateProject}>
+          <div className="form-group">
+            <label htmlFor="projectName">Project Name *</label>
+            <input
+              id="projectName"
+              type="text"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              placeholder="my-awesome-project"
+              disabled={isCreating}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="projectDescription">Description</label>
+            <textarea
+              id="projectDescription"
+              value={newProjectDescription}
+              onChange={(e) => setNewProjectDescription(e.target.value)}
+              placeholder="Optional project description"
+              disabled={isCreating}
+              rows={3}
+            />
+          </div>
+          <div className="form-actions">
+            <button 
+              type="button" 
+              className="cancel-btn"
+              onClick={() => {
+                setShowCreateForm(false);
+                setNewProjectName('');
+                setNewProjectDescription('');
+              }}
+              disabled={isCreating}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="create-btn"
+              disabled={isCreating || !newProjectName.trim()}
+            >
+              {isCreating ? 'Creating...' : 'Create Project'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="projects-list">
+        {isLoading ? (
+          <div className="loading">Loading projects from S3...</div>
+        ) : !auth.user ? (
+          <div className="no-auth">Please log in to view projects</div>
+        ) : projects.length === 0 ? (
+          <div className="no-projects">
+            <p>No projects found. Create your first project to get started!</p>
+          </div>
+        ) : (
+          <div className="projects-grid">
+            {projects.map((project) => (
+              <div 
+                key={project.name}
+                className={`project-card ${selectedProject?.name === project.name ? 'selected' : ''}`}
+                onClick={() => handleProjectClick(project)}
+              >
+                <div className="project-info">
+                  <h4 className="project-name">{project.name}</h4>
+                  {project.description && (
+                    <p className="project-description">{project.description}</p>
+                  )}
+                  <div className="project-meta">
+                    <div>Created: {formatDate(project.createdAt)}</div>
+                    <div>Files: {project.fileCount || 0}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedProject && (
+        <div className="selected-project-info">
+          <div className="selected-badge">
+            📁 Selected: <strong>{selectedProject.name}</strong>
+            {selectedProject.fileCount !== undefined && (
+              <span className="file-count"> ({selectedProject.fileCount} files)</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProjectManager; 
