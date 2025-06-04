@@ -114,4 +114,4 @@ if __name__ == "__main__":
             print(f"\n💬 {answer.response}")
         except KeyboardInterrupt:
             print("\n👋 Goodbye!")
-            #breakokay 
+            break 
