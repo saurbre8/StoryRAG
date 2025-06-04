@@ -33,7 +33,7 @@ REGION = "us-east-1"
 USER_POOL_ID = "us-east-1_3GBn9c4Qm"
 AUDIENCE = os.getenv("COGNITO_CLIENT_ID")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-user_id="b4b8d418-50d1-70cc-cc15-3500f85e6de3"
+
 
 s3_client = boto3.client("s3")
 
