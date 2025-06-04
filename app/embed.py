@@ -33,12 +33,7 @@ USER_POOL_ID = "us-east-1_3GBn9c4Qm"
 AUDIENCE = os.getenv("COGNITO_CLIENT_ID")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
 s3_client = boto3.client("s3")
-
-
-
 
 #=== HELPERS ===
 def hash_to_uuid(text):

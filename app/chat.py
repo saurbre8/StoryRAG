@@ -12,43 +12,26 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from sentence_transformers import SentenceTransformer
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.vector_stores.types import MetadataFilter, MetadataFilters
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 load_dotenv()
 
 # === Embedding wrapper ===
-class MiniLMMEmbedding(BaseEmbedding):
-    def __init__(self):
-        super().__init__()
-        self._model = SentenceTransformer("BAAI/bge-small-en-v1.5")
-
-    def _get_text_embedding(self, text: str):
-        return self._model.encode(text).tolist()
-
-    def _get_query_embedding(self, query: str):
-        return self._model.encode(query).tolist()
-
-    async def _aget_text_embedding(self, text: str):
-        return self._get_text_embedding(text)
-
-    async def _aget_query_embedding(self, query: str):
-        return self._get_query_embedding(query)
-
-# === Core function ===
 def run_chat_query(user_id: str, project_folder: str, question: str) -> str:
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     qdrant_host = os.getenv("QDRANT_HOST")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     collection_name = "splitter"
 
-    # Init client
+    # Init Qdrant
     qdrant_client = QdrantClient(url=qdrant_host, api_key=qdrant_api_key)
     vector_store = QdrantVectorStore(client=qdrant_client, collection_name=collection_name)
 
     # Settings
     Settings.llm = OpenAI(api_key=openai_api_key, model="gpt-3.5-turbo", temperature=0.3)
-    Settings.embed_model = MiniLMMEmbedding()
+    Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small", api_key=openai_api_key)
 
-    # Filters
+    # Retriever
     retriever = VectorIndexRetriever(
         index=VectorStoreIndex.from_vector_store(vector_store),
         similarity_top_k=3,
