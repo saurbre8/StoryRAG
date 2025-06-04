@@ -5,18 +5,17 @@ from pathlib import Path
 from markdown import markdown
 from bs4 import BeautifulSoup
 from tqdm import tqdm
-from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from dotenv import load_dotenv
-from huggingface_hub import login
 import sys
 import jwt
 import requests
 import boto3
 from io import BytesIO
 from qdrant_client.models import PayloadSchemaType
+from openai import OpenAI
 
 # === ENVIRONMENT SETUP ===
 load_dotenv()
@@ -25,7 +24,7 @@ QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 HG_FACE_READ_TOKEN = os.getenv("HG_FACE_READ_TOKEN")
 COLLECTION_NAME = "splitter"
-EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+EMBEDDING_MODEL = "text-embedding-3-small"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 JWT_TOKEN = os.getenv("COGNITO_TOKEN")
@@ -33,15 +32,13 @@ REGION = "us-east-1"
 USER_POOL_ID = "us-east-1_3GBn9c4Qm"
 AUDIENCE = os.getenv("COGNITO_CLIENT_ID")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 s3_client = boto3.client("s3")
 
-# Hugging Face Login
-if HG_FACE_READ_TOKEN:
-    login(token=HG_FACE_READ_TOKEN)
-else:
-    raise ValueError("❌ Hugging Face token not found. Please set HG_FACE_READ_TOKEN in your .env file.")
+
+
 
 #=== HELPERS ===
 def hash_to_uuid(text):
@@ -100,19 +97,38 @@ def filter_new_chunks(client, collection_name, chunks):
     return new_chunks
 
 # === STEP 3: Embed New Chunks ===
-def embed_chunks(chunks, model_name):
-    model = SentenceTransformer(model_name)
+def embed_chunks(chunks, model_name="text-embedding-3-small"):
     texts = [chunk["text"] for chunk in chunks]
-    vectors = model.encode(texts, show_progress_bar=True)
-    return [
-        {
-            "id": chunk["id"],
-            "embedding": vector.tolist(),
-            "text": chunk["text"],
-            "metadata": chunk["metadata"]
-        }
-        for vector, chunk in zip(vectors, chunks)
-    ]
+    embedded_chunks = []
+
+    print("📦 Sending chunks to OpenAI for embedding...")
+
+    for i in tqdm(range(0, len(texts), 100), desc="🔌 Embedding with OpenAI"):
+        batch = texts[i:i+100]
+
+        for attempt in range(5):
+            try:
+                response = client.embeddings.create(input=batch, model=model_name)
+                break
+            except Exception as e:
+                print(f"⚠️ Attempt {attempt+1} failed: {e}")
+                time.sleep(2 ** attempt)
+        else:
+            raise RuntimeError("❌ Failed to embed after 5 retries.")
+
+        embeddings = [record.embedding for record in response.data]
+
+        for j, vector in enumerate(embeddings):
+            chunk = chunks[i + j]
+            embedded_chunks.append({
+                "id": chunk["id"],
+                "embedding": vector,
+                "text": chunk["text"],
+                "metadata": chunk["metadata"]
+            })
+
+    return embedded_chunks
+
 
 def ensure_metadata_indexes(client, collection_name):
     required_indexes = {
