@@ -16,6 +16,7 @@ import jwt
 import requests
 import boto3
 from io import BytesIO
+from qdrant_client.models import PayloadSchemaType
 
 # === ENVIRONMENT SETUP ===
 load_dotenv()
@@ -23,7 +24,7 @@ load_dotenv()
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 HG_FACE_READ_TOKEN = os.getenv("HG_FACE_READ_TOKEN")
-COLLECTION_NAME = "Egothare_v2"
+COLLECTION_NAME = "splitter"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
@@ -32,7 +33,7 @@ REGION = "us-east-1"
 USER_POOL_ID = "us-east-1_3GBn9c4Qm"
 AUDIENCE = os.getenv("COGNITO_CLIENT_ID")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-user_id="44b84468-f061-70d7-2866-1c0989430fbf"
+user_id="b4b8d418-50d1-70cc-cc15-3500f85e6de3"
 
 s3_client = boto3.client("s3")
 
@@ -104,7 +105,7 @@ def load_and_chunk_markdown_from_s3(bucket_name, user_id):
                     "id": chunk_id,
                     "text": chunk_text,
                     "metadata": {
-                        "user_id": user_id,
+                        "user_id": str(user_id),
                         "project_folder": project_folder,
                         "filename": filename,
                         "source": key
@@ -139,6 +140,24 @@ def embed_chunks(chunks, model_name):
         for vector, chunk in zip(vectors, chunks)
     ]
 
+def ensure_metadata_indexes(client, collection_name):
+    required_indexes = {
+        "user_id": PayloadSchemaType.KEYWORD,
+        "project_folder": PayloadSchemaType.KEYWORD,
+        "filename": PayloadSchemaType.KEYWORD,
+    }
+
+    existing_indexes = client.get_collection(collection_name).payload_schema
+
+    for field, schema in required_indexes.items():
+        if field not in existing_indexes:
+            print(f"🔧 Creating index on: {field}")
+            client.create_payload_index(
+                collection_name=collection_name,
+                field_name=field,
+                field_schema=schema
+            )
+
 # === STEP 4: Upload to Qdrant Cloud ===
 def upload_to_qdrant(embedded_chunks, client, collection_name):
     vector_dim = len(embedded_chunks[0]["embedding"])
@@ -148,6 +167,9 @@ def upload_to_qdrant(embedded_chunks, client, collection_name):
             collection_name=collection_name,
             vectors_config=VectorParams(size=vector_dim, distance=Distance.COSINE)
         )
+
+    # 🆕 Ensure proper metadata indexes exist
+    ensure_metadata_indexes(client, collection_name)
 
     points = [
         PointStruct(
@@ -171,7 +193,8 @@ if __name__ == "__main__":
     client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
 
     print("🧠 Filtering out already uploaded chunks...")
-    new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks)
+    new_chunks = chunks
+    #new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks)
 
     if not new_chunks:
         print("✅ No new content to upload.")
