@@ -85,25 +85,43 @@
 
 .tab-navigation {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .tab-navigation button {
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  color: #495057;
   padding: 0.75rem 1.5rem;
-  border: 1px solid #ddd;
-  background: white;
-  cursor: pointer;
-  border-radius: 4px;
+  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.tab-navigation button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-1px);
 }
 
 .tab-navigation button.active {
   background: #007bff;
-  color: white;
   border-color: #007bff;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
-.tab-navigation button:hover:not(.active) {
-  background: #f8f9fa;
+.tab-navigation button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 } 

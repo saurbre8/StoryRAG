@@ -1,21 +1,12 @@
 import React, { useState } from 'react';
 import AuthWrapper from './components/AuthWrapper';
-import FileUploader from './components/FileUploader';
-import FileViewer from './components/FileViewer';
-import Chat from './components/Chat';
+import CreateTab from './components/CreateTab';
+import ChatTab from './components/ChatTab';
+import EditTab from './components/EditTab';
 import './App.css';
 
 function App() {
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [activeTab, setActiveTab] = useState('files'); // 'files' or 'chat'
-
-  const handleFilesUploaded = (files) => {
-    setUploadedFiles(files);
-  };
-
-  const clearFiles = () => {
-    setUploadedFiles([]);
-  };
+  const [activeTab, setActiveTab] = useState('create');
 
   return (
     <AuthWrapper>
@@ -23,38 +14,34 @@ function App() {
         <main className="App-main">
           <div className="app-content">
             <div className="intro-section">
-              <h2>Project Hub</h2>
-              <p>Manage your files and chat with the worldbuilding assistant</p>
+              <h2>StoryRAG Project Hub</h2>
+              <p>Create projects, chat with AI, and manage your worldbuilding files</p>
               
               <div className="tab-navigation">
                 <button 
-                  className={activeTab === 'files' ? 'active' : ''}
-                  onClick={() => setActiveTab('files')}
+                  className={activeTab === 'create' ? 'active' : ''}
+                  onClick={() => setActiveTab('create')}
                 >
-                  File Manager
+                  📁 Create
                 </button>
                 <button 
                   className={activeTab === 'chat' ? 'active' : ''}
                   onClick={() => setActiveTab('chat')}
                 >
-                  Chat Assistant
+                  💬 Chat
+                </button>
+                <button 
+                  className={activeTab === 'edit' ? 'active' : ''}
+                  onClick={() => setActiveTab('edit')}
+                >
+                  ✏️ Edit
                 </button>
               </div>
             </div>
             
-            {activeTab === 'files' ? (
-              <>
-                <FileUploader onFilesUploaded={handleFilesUploaded} />
-                {uploadedFiles.length > 0 && (
-                  <FileViewer 
-                    files={uploadedFiles} 
-                    onClear={clearFiles}
-                  />
-                )}
-              </>
-            ) : (
-              <Chat />
-            )}
+            {activeTab === 'create' && <CreateTab />}
+            {activeTab === 'chat' && <ChatTab />}
+            {activeTab === 'edit' && <EditTab />}
           </div>
         </main>
       </div>
