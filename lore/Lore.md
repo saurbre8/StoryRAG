@@ -31,3 +31,8 @@ And when the sky cracked open and the gods returned, it was said they found two 
   
 
 To this day, the Oath of Stone and Flame is whispered in moments of desperation. Not as a prayer to gods—but in memory of the two who held the line when even the heavens turned away.
+
+
+ssh -i /Users/zachburns/Desktop/StoryRAG/basic.pem ec2-user@3.91.84.112
+
+scp -i /path/to/basic.pem -r /path/to/your-fastapi-folder ec2-user@3.91.84.112:~/
