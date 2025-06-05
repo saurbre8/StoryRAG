@@ -14,6 +14,7 @@ function App() {
         <main className="App-main">
           <div className="app-content">
             <div className="intro-section">
+              
               <h2>StoryRAG Project Hub</h2>
               <p>Create projects, chat with AI, and manage your worldbuilding files</p>
               
