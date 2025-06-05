@@ -9,7 +9,6 @@ from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.llms.openai import OpenAI
 from llama_index.core.settings import Settings
 from llama_index.core.base.embeddings.base import BaseEmbedding
-from sentence_transformers import SentenceTransformer
 from llama_index.core.prompts import PromptTemplate
 from llama_index.core.vector_stores.types import MetadataFilter, MetadataFilters
 from llama_index.embeddings.openai import OpenAIEmbedding
