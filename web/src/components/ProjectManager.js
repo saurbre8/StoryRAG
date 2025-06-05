@@ -106,13 +106,21 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
     }
   };
 
+  const handleProjectChange = (e) => {
+    const projectName = e.target.value;
+    if (projectName === '') {
+      onProjectSelect(null);
+    } else {
+      const project = projects.find(p => p.name === projectName);
+      if (project) {
+        onProjectSelect(project);
+      }
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString();
-  };
-
-  const handleProjectClick = (project) => {
-    onProjectSelect(project);
   };
 
   return (
@@ -177,35 +185,32 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
         </form>
       )}
 
-      <div className="projects-list">
+      <div className="project-selector">
         {isLoading ? (
           <div className="loading">Loading projects from S3...</div>
         ) : !auth.user ? (
           <div className="no-auth">Please log in to view projects</div>
-        ) : projects.length === 0 ? (
-          <div className="no-projects">
-            <p>No projects found. Create your first project to get started!</p>
-          </div>
         ) : (
-          <div className="projects-grid">
-            {projects.map((project) => (
-              <div 
-                key={project.name}
-                className={`project-card ${selectedProject?.name === project.name ? 'selected' : ''}`}
-                onClick={() => handleProjectClick(project)}
-              >
-                <div className="project-info">
-                  <h4 className="project-name">{project.name}</h4>
-                  {project.description && (
-                    <p className="project-description">{project.description}</p>
-                  )}
-                  <div className="project-meta">
-                    <div>Created: {formatDate(project.createdAt)}</div>
-                    <div>Files: {project.fileCount || 0}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="dropdown-container">
+            <label htmlFor="project-select" className="dropdown-label">
+              Select Project:
+            </label>
+            <select
+              id="project-select"
+              className="project-dropdown"
+              value={selectedProject?.name || ''}
+              onChange={handleProjectChange}
+              disabled={projects.length === 0}
+            >
+              <option value="">
+                {projects.length === 0 ? 'No projects available' : 'Choose a project...'}
+              </option>
+              {projects.map((project) => (
+                <option key={project.name} value={project.name}>
+                  {project.name} ({project.fileCount || 0} files)
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>
@@ -213,10 +218,16 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
       {selectedProject && (
         <div className="selected-project-info">
           <div className="selected-badge">
-            📁 Selected: <strong>{selectedProject.name}</strong>
-            {selectedProject.fileCount !== undefined && (
-              <span className="file-count"> ({selectedProject.fileCount} files)</span>
-            )}
+            <div className="project-details">
+              <h4>📁 {selectedProject.name}</h4>
+              {selectedProject.description && (
+                <p className="description">{selectedProject.description}</p>
+              )}
+              <div className="project-meta">
+                <span>Created: {formatDate(selectedProject.createdAt)}</span>
+                <span>Files: {selectedProject.fileCount || 0}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
