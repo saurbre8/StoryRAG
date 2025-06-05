@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException
 from app.embed import embed_s3_markdown
+from fastapi.middleware.cors import CORSMiddleware
 from app.chat import run_chat_query
 import logging
 
@@ -7,6 +8,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # React development server
+        "https://yourdomain.com",  # Your production domain (if you have one)
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "message": "API is running"}
 
 @app.post("/embed")
 def embed_route(
