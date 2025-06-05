@@ -10,7 +10,6 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from qdrant_client.http.models import Filter, FieldCondition, MatchValue
 from dotenv import load_dotenv
 import sys
-import jwt
 import requests
 import boto3
 from io import BytesIO
