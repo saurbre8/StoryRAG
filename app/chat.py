@@ -36,7 +36,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     )
 
     # 3) Put the new user message into memory
-    memory.put(ChatMessage(role="user", content=question))
+    memory.put(ChatMessage(role=MessageRole.USER, content=question))
 
     # 4) Initialize Qdrant‐based VectorStore
     qdrant_client = QdrantClient(url=qdrant_host, api_key=qdrant_api_key)
@@ -68,7 +68,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     #    NOTE: `retrieve()` returns a list of NodeWithScore objects,
     #    where `.score` is the similarity value (0 to 1).
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.65
+    SCORE_THRESHOLD = 0.35
 
     # If there are no candidates or the top candidate’s score is < threshold → fallback
     if not candidates or candidates[0].score < SCORE_THRESHOLD:
@@ -76,7 +76,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         # Fallback to chat‐only: LLM sees full conversation history
         # ——————————————————————————————————————————————
         history_messages = [
-            ChatMessage(role=MessageRole(msg.role.value), content=msg.content)
+            ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content)
             for msg in memory.get()
         ]
         history_messages.append(ChatMessage(role=MessageRole.USER, content=question))
@@ -146,4 +146,6 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         print(f"{msg.role}: {msg.content}")
 
     # 12) Return the assistant’s RAG answer
-    return response.response
+    assistant_text = getattr(response, "response", getattr(response, "message", response))
+    memory.put(ChatMessage(role="assistant", content=assistant_text))
+    return assistant_text
