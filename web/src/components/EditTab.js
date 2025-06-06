@@ -1,3 +1,19 @@
+/**
+ * EditTab Component
+ * 
+ * Provides project management and file viewing capabilities for existing projects.
+ * This tab allows users to browse their created projects, view project files,
+ * and inspect the content of individual files stored in their projects.
+ * 
+ * Features:
+ * - Project selection and management via ProjectManager
+ * - Lists all files within a selected project
+ * - File content viewer for reading uploaded markdown files
+ * - File metadata display (size, date, etc.)
+ * - Integration with S3 storage for file retrieval
+ * - Loading states and error handling for file operations
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import ProjectManager from './ProjectManager';

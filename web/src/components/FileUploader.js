@@ -1,3 +1,21 @@
+/**
+ * FileUploader Component
+ * 
+ * A comprehensive file upload interface that handles drag-and-drop uploads of markdown files
+ * for worldbuilding projects. This component manages the entire upload pipeline from
+ * file selection to cloud storage and AI embedding preparation.
+ * 
+ * Features:
+ * - Drag-and-drop file upload with visual feedback
+ * - Markdown file filtering and validation
+ * - Project selection integration via ProjectManager
+ * - Multi-file upload with progress tracking
+ * - Automatic S3 storage upload for selected projects
+ * - AI embedding service integration for search capabilities
+ * - Upload status tracking and error handling
+ * - File content reading and local preview
+ * - Batch processing of multiple files
+ */
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from 'react-oidc-context';

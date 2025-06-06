@@ -1,3 +1,18 @@
+/**
+ * Chat Component
+ * 
+ * The main AI chat interface that allows users to have conversations with an AI assistant about their worldbuilding projects. The AI uses the uploaded project files as context to provide relevant and informed responses about characters, locations, plot elements, etc.
+ * 
+ * Features:
+ * - Real-time chat interface with message history
+ * - Project selection for context-aware conversations
+ * - API health monitoring and connection status
+ * - Message sending with loading states and error handling
+ * - Auto-scrolling chat messages
+ * - Integration with backend chat API service
+ * - Retry mechanisms for connection issues
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import ProjectManager from './ProjectManager';

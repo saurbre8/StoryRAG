@@ -1,3 +1,17 @@
+/**
+ * CreateTab Component
+ * 
+ * The main interface for creating new projects and uploading worldbuilding files.
+ * This tab allows users to start new projects by uploading markdown files that contain
+ * their worldbuilding content (characters, locations, plot notes, etc.).
+ * 
+ * Features:
+ * - Integrates FileUploader for drag-and-drop file uploads
+ * - Displays uploaded files using FileViewer component
+ * - Manages the flow from file upload to project creation
+ * - Shows file preview and management capabilities
+ */
+
 import React, { useState } from 'react';
 import FileUploader from './FileUploader';
 import FileViewer from './FileViewer';

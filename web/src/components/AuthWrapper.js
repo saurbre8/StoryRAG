@@ -1,3 +1,19 @@
+/**
+ * AuthWrapper Component
+ * 
+ * A higher-order component that handles all authentication logic for the StoryRAG application.
+ * This component wraps the entire app and manages user authentication state using AWS Cognito
+ * via the react-oidc-context library.
+ * 
+ * Features:
+ * - Handles sign-in/sign-out flow with AWS Cognito
+ * - Displays loading states during authentication
+ * - Shows error handling for authentication failures
+ * - Renders different UI based on authentication state (login screen vs authenticated app)
+ * - Automatically cleans up URL parameters after successful authentication
+ * - Provides user info display and sign-out functionality
+ */
+
 import React from 'react';
 import { useAuth } from 'react-oidc-context';
 import './AuthWrapper.css';

@@ -1,3 +1,19 @@
+/**
+ * FileViewer Component
+ * 
+ * A file browser and preview component that displays uploaded markdown files
+ * with search functionality and detailed content viewing. This component allows
+ * users to explore their uploaded files before they're processed into projects.
+ * 
+ * Features:
+ * - File list display with metadata (size, date, upload status)
+ * - Search functionality across file names and content
+ * - File selection and content preview
+ * - Upload status indicators (S3, local, failed)
+ * - File statistics (word count, line count, etc.)
+ * - Clear all functionality for starting over
+ * - Responsive layout with side-by-side file list and preview
+ */
 import React, { useState } from 'react';
 import './FileViewer.css';
 
