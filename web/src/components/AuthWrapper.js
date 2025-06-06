@@ -30,11 +30,26 @@ const AuthWrapper = ({ children }) => {
     });
   }, [auth.isLoading, auth.isAuthenticated, auth.error, auth.user]);
 
-  const signOutRedirect = () => {
-    const clientId = "64u7vdgfncafvd2ku35084no4d";
-    const logoutUri = "http://localhost:3000";
-    const cognitoDomain = "https://us-east-13gbn9c4qm.auth.us-east-1.amazoncognito.com";
-    window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
+  const handleSignOut = async () => {
+    try {
+      console.log('Initiating sign-out...');
+      
+      // First try to remove the user from the OIDC context
+      await auth.removeUser();
+      
+      // Then manually redirect to the correct Cognito logout endpoint
+      const clientId = "64u7vdgfncafvd2ku35084no4d";
+      const logoutUri = "http://localhost:3000";
+      const cognitoDomain = "https://us-east-13gbn9c4qm.auth.us-east-1.amazoncognito.com";
+      
+      // Use the correct logout endpoint
+      window.location.href = `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
+      
+    } catch (error) {
+      console.error('Sign-out error:', error);
+      // Force reload as fallback
+      window.location.href = 'http://localhost:3000';
+    }
   };
 
   const handleSignIn = async () => {
@@ -111,7 +126,7 @@ const AuthWrapper = ({ children }) => {
                 Welcome, {auth.user?.profile?.preferred_username || auth.user?.profile?.username || auth.user?.username || 'User'}
               </span>
               <button 
-                onClick={signOutRedirect} 
+                onClick={handleSignOut} 
                 className="sign-out-btn"
               >
                 Sign Out
