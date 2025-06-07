@@ -50,6 +50,11 @@ const EditTab = () => {
 
       const files = await s3Service.listProjectFiles(userId, project.name);
       setProjectFiles(files);
+      
+      // Auto-select the first file if files exist
+      if (files.length > 0) {
+        await handleFileSelect(files[0]);
+      }
     } catch (error) {
       console.error('Failed to load project files:', error);
       setProjectFiles([]);
