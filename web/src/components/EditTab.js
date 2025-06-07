@@ -14,7 +14,7 @@
  * - Loading states and error handling for file operations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import ProjectManager from './ProjectManager';
 import s3Service from '../services/s3Service';
@@ -25,9 +25,9 @@ const EditTab = () => {
   const [projectFiles, setProjectFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [isLoadingContent, setIsLoadingContent] = useState(false);
   const auth = useAuth();
+  
+  const filesSectionRef = useRef(null);
 
   const handleProjectSelect = async (project) => {
     setSelectedProject(project);
@@ -40,7 +40,6 @@ const EditTab = () => {
     if (!project || !auth.user) return;
     
     try {
-      setIsLoadingFiles(true);
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       
       const initialized = s3Service.initializeWithCognito(auth.user);
@@ -58,22 +57,26 @@ const EditTab = () => {
     } catch (error) {
       console.error('Failed to load project files:', error);
       setProjectFiles([]);
-    } finally {
-      setIsLoadingFiles(false);
     }
   };
 
   const handleFileSelect = async (file) => {
     setSelectedFile(file);
     await loadFileContent(file);
+    
+    // Scroll to the top of the files section
+    if (filesSectionRef.current) {
+      filesSectionRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
   };
 
   const loadFileContent = async (file) => {
     if (!file || !auth.user) return;
     
     try {
-      setIsLoadingContent(true);
-      
       const initialized = s3Service.initializeWithCognito(auth.user);
       if (!initialized) {
         throw new Error('Failed to initialize S3 service');
@@ -84,8 +87,6 @@ const EditTab = () => {
     } catch (error) {
       console.error('Failed to load file content:', error);
       setFileContent(`Error loading file content: ${error.message}`);
-    } finally {
-      setIsLoadingContent(false);
     }
   };
 
@@ -118,17 +119,16 @@ const EditTab = () => {
         </div>
 
         {selectedProject && (
-          <div className="files-section">
+          <div className="files-section" ref={filesSectionRef}>
             <div className="files-header">
               <h4>Files in "{selectedProject.name}"</h4>
-              {isLoadingFiles && <span className="loading-spinner">Loading...</span>}
             </div>
             
             <div className="files-content">
               <div className="files-list">
                 {projectFiles.length === 0 ? (
                   <div className="no-files">
-                    {isLoadingFiles ? 'Loading files...' : 'No files found in this project'}
+                    No files found in this project
                   </div>
                 ) : (
                   <div className="file-items">
@@ -152,18 +152,13 @@ const EditTab = () => {
                 )}
               </div>
 
-              {selectedFile && (
+              {selectedFile && fileContent && (
                 <div className="file-viewer">
                   <div className="file-viewer-header">
                     <h5>{selectedFile.name}</h5>
-                    {isLoadingContent && <span className="loading-spinner">Loading content...</span>}
                   </div>
                   <div className="file-content">
-                    {isLoadingContent ? (
-                      <div className="loading-content">Loading file content...</div>
-                    ) : (
-                      <pre className="content-display">{fileContent}</pre>
-                    )}
+                    <pre className="content-display">{fileContent}</pre>
                   </div>
                 </div>
               )}
