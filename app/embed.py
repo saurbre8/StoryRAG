@@ -61,7 +61,8 @@ def load_and_chunk_markdown_from_s3(bucket_name, user_id, project_folder=None):
         for i in range(0, len(words), CHUNK_SIZE - CHUNK_OVERLAP):
             chunk_text = " ".join(words[i:i + CHUNK_SIZE])
             if chunk_text.strip():
-                chunk_id = hash_to_uuid(chunk_text)
+                chunk_id_input = f"{user_id}|{project_folder}|{chunk_text}"
+                chunk_id = hash_to_uuid(chunk_id_input)
                 parts = key.split("/")
                 file_project_folder = parts[2] if len(parts) > 3 else "root"
                 filename = parts[-1]
