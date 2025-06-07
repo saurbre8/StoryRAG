@@ -201,13 +201,15 @@ class S3Service {
     }
   }
 
-  // Upload file content to a specific project
-  async uploadFileContentToProject(fileName, content, userId, projectName, onProgress = null) {
+  // Upload file content to a specific project with folder structure
+  async uploadFileContentToProject(fileName, content, userId, projectName, filePath = null, onProgress = null) {
     if (!this.s3) {
       throw new Error('S3 service not initialized');
     }
 
-    const key = `${this.getProjectPrefix(userId, projectName)}${fileName}`;
+    // Use the full path if provided, otherwise just the filename
+    const fileKey = filePath || fileName;
+    const key = `${this.getProjectPrefix(userId, projectName)}${fileKey}`;
     
     const uploadParams = {
       Bucket: this.bucketName,

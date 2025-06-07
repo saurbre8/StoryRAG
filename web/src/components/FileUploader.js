@@ -62,6 +62,19 @@ const FileUploader = ({ onFilesUploaded }) => {
 
     console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
 
+    // Helper function to strip the root folder from the path
+    const stripRootFolder = (relativePath) => {
+      if (!relativePath) return '';
+      
+      const pathParts = relativePath.split('/');
+      // If there's more than one part, remove the first part (root folder)
+      if (pathParts.length > 1) {
+        return pathParts.slice(1).join('/');
+      }
+      // If it's just a filename, return empty string (file goes to root)
+      return '';
+    };
+
     try {
       setIsUploading(true);
       setStatusMessage('Uploading files to S3...');
@@ -88,12 +101,17 @@ const FileUploader = ({ onFilesUploaded }) => {
             const progressKey = `file-${index}`;
             setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
 
-            // Upload to S3 in the selected project
+            // Strip the root folder from the path
+            const strippedPath = stripRootFolder(file.webkitRelativePath);
+            const finalPath = strippedPath ? `${strippedPath}` : file.name;
+
+            // Upload to S3 in the selected project with folder structure
             const uploadResult = await s3Service.uploadFileContentToProject(
               file.name, 
               content, 
               userId,
               selectedProject.name,
+              finalPath,
               (percent) => {
                 setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
               }
@@ -111,7 +129,7 @@ const FileUploader = ({ onFilesUploaded }) => {
               size: file.size,
               content: content,
               lastModified: file.lastModified,
-              path: file.webkitRelativePath || file.name,
+              path: finalPath,
               s3Key: uploadResult.key,
               s3Location: uploadResult.location,
               projectName: selectedProject.name,
@@ -122,12 +140,15 @@ const FileUploader = ({ onFilesUploaded }) => {
             
             // Still return file data for local viewing, but mark S3 upload as failed
             const content = await file.text();
+            const strippedPath = stripRootFolder(file.webkitRelativePath);
+            const finalPath = strippedPath ? `${strippedPath}` : file.name;
+            
             return {
               name: file.name,
               size: file.size,
               content: content,
               lastModified: file.lastModified,
-              path: file.webkitRelativePath || file.name,
+              path: finalPath,
               projectName: selectedProject.name,
               uploadedToS3: false,
               uploadError: error.message
