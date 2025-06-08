@@ -94,6 +94,10 @@
   border-left: 3px solid #2196f3;
 }
 
+.file-item.selected .file-meta {
+  color: #666;
+}
+
 .file-icon {
   font-size: 1.2rem;
   margin-right: 0.75rem;
@@ -139,6 +143,7 @@
 .file-content {
   flex: 1;
   overflow: auto;
+  min-height: 300px;
 }
 
 .loading-content {
@@ -146,6 +151,11 @@
   text-align: center;
   color: #666;
   font-style: italic;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .content-display {
@@ -160,9 +170,8 @@
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
-  height: 100%;
-  min-height: 300px;
-  overflow: auto;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
 /* Responsive design */
