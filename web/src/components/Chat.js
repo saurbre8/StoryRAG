@@ -26,6 +26,7 @@ const Chat = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [apiStatus, setApiStatus] = useState('unknown'); // 'online', 'offline', 'unknown'
   const [connectionError, setConnectionError] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
   const auth = useAuth();
 
@@ -57,11 +58,30 @@ const Chat = () => {
     }
   };
 
+  // Generate a new session ID when component mounts or project changes
+  const generateSessionId = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    return `session_${timestamp}_${random}`;
+  };
+
+  // Initialize session ID on component mount
+  useEffect(() => {
+    if (!sessionId) {
+      const newSessionId = generateSessionId();
+      setSessionId(newSessionId);
+      console.log('Generated new session ID:', newSessionId);
+    }
+  }, [sessionId]);
+
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
-    // Clear messages when switching projects
+    // Clear messages and generate new session when switching projects
     setMessages([]);
+    const newSessionId = generateSessionId();
+    setSessionId(newSessionId);
     console.log('Selected project for chat:', project);
+    console.log('Generated new session ID for project:', newSessionId);
   };
 
   const sendMessage = async () => {
@@ -74,6 +94,12 @@ const Chat = () => {
 
     if (apiStatus === 'offline') {
       alert('Chat API is currently offline. Please try again later.');
+      return;
+    }
+
+    if (!sessionId) {
+      console.error('No session ID available');
+      alert('Session not initialized. Please refresh the page.');
       return;
     }
 
@@ -91,7 +117,8 @@ const Chat = () => {
       const data = await chatApiService.sendMessage({
         message: userMessage,
         userId: userId,
-        projectName: selectedProject.name
+        projectName: selectedProject.name,
+        sessionId: sessionId
       });
 
       // Add assistant response to chat
@@ -115,6 +142,14 @@ const Chat = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add a function to start a new conversation
+  const startNewConversation = () => {
+    const newSessionId = generateSessionId();
+    setSessionId(newSessionId);
+    setMessages([]);
+    console.log('Started new conversation with session ID:', newSessionId);
   };
 
   const handleKeyPress = (e) => {
@@ -150,7 +185,15 @@ const Chat = () => {
           )}
         </div>
         {selectedProject ? (
-          <p>Chatting about: <strong>{selectedProject.name}</strong></p>
+          <div>
+            <p>Chatting about: <strong>{selectedProject.name}</strong></p>
+            <div className="session-controls">
+              <span className="session-info">Session: {sessionId?.substring(8, 16)}...</span>
+              <button className="new-conversation-btn" onClick={startNewConversation}>
+                New Conversation
+              </button>
+            </div>
+          </div>
         ) : (
           <p>Select a project above to start chatting</p>
         )}
