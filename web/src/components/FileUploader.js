@@ -1,15 +1,36 @@
+/**
+ * FileUploader Component
+ * 
+ * A comprehensive file upload interface that handles drag-and-drop uploads of markdown files
+ * for worldbuilding projects. This component manages the entire upload pipeline from
+ * file selection to cloud storage and AI embedding preparation.
+ * 
+ * Features:
+ * - Drag-and-drop file upload with visual feedback
+ * - Markdown file filtering and validation
+ * - Project selection integration via ProjectManager
+ * - Multi-file upload with progress tracking
+ * - Automatic S3 storage upload for selected projects
+ * - AI embedding service integration for search capabilities
+ * - Upload status tracking and error handling
+ * - File content reading and local preview
+ * - Batch processing of multiple files
+ */
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
+import embedService from '../services/embedService';
 import ProjectManager from './ProjectManager';
 import './FileUploader.css';
 
 const FileUploader = ({ onFilesUploaded }) => {
   const [isDragActive, setIsDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isEmbedding, setIsEmbedding] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [selectedProject, setSelectedProject] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const auth = useAuth();
 
   const handleProjectSelect = (project) => {
@@ -41,8 +62,22 @@ const FileUploader = ({ onFilesUploaded }) => {
 
     console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
 
+    // Helper function to strip the root folder from the path
+    const stripRootFolder = (relativePath) => {
+      if (!relativePath) return '';
+      
+      const pathParts = relativePath.split('/');
+      // If there's more than one part, remove the first part (root folder)
+      if (pathParts.length > 1) {
+        return pathParts.slice(1).join('/');
+      }
+      // If it's just a filename, return empty string (file goes to root)
+      return '';
+    };
+
     try {
       setIsUploading(true);
+      setStatusMessage('Uploading files to S3...');
       
       // Initialize S3 service with user credentials
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
@@ -66,12 +101,17 @@ const FileUploader = ({ onFilesUploaded }) => {
             const progressKey = `file-${index}`;
             setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
 
-            // Upload to S3 in the selected project
+            // Strip the root folder from the path
+            const strippedPath = stripRootFolder(file.webkitRelativePath);
+            const finalPath = strippedPath ? `${strippedPath}` : file.name;
+
+            // Upload to S3 in the selected project with folder structure
             const uploadResult = await s3Service.uploadFileContentToProject(
               file.name, 
               content, 
               userId,
               selectedProject.name,
+              finalPath,
               (percent) => {
                 setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
               }
@@ -89,7 +129,7 @@ const FileUploader = ({ onFilesUploaded }) => {
               size: file.size,
               content: content,
               lastModified: file.lastModified,
-              path: file.webkitRelativePath || file.name,
+              path: finalPath,
               s3Key: uploadResult.key,
               s3Location: uploadResult.location,
               projectName: selectedProject.name,
@@ -100,12 +140,15 @@ const FileUploader = ({ onFilesUploaded }) => {
             
             // Still return file data for local viewing, but mark S3 upload as failed
             const content = await file.text();
+            const strippedPath = stripRootFolder(file.webkitRelativePath);
+            const finalPath = strippedPath ? `${strippedPath}` : file.name;
+            
             return {
               name: file.name,
               size: file.size,
               content: content,
               lastModified: file.lastModified,
-              path: file.webkitRelativePath || file.name,
+              path: finalPath,
               projectName: selectedProject.name,
               uploadedToS3: false,
               uploadError: error.message
@@ -115,23 +158,61 @@ const FileUploader = ({ onFilesUploaded }) => {
       );
 
       console.log('Files processed:', filesWithContent);
-      onFilesUploaded(filesWithContent);
-
-      // Show success message
+      
+      // Count successful uploads
       const successCount = filesWithContent.filter(f => f.uploadedToS3).length;
       const failCount = filesWithContent.length - successCount;
-      
-      if (failCount === 0) {
-        alert(`Successfully uploaded ${successCount} files to project "${selectedProject.name}"!`);
+
+      setIsUploading(false);
+
+      // If we have successful uploads, trigger embedding
+      if (successCount > 0) {
+        setIsEmbedding(true);
+        setStatusMessage(`Embedding ${successCount} files for better search...`);
+        
+        console.log(`Starting embedding for project: ${selectedProject.name}`);
+        
+        const embedResult = await embedService.embedProjectSafely(userId, selectedProject.name);
+        
+        setIsEmbedding(false);
+        
+        if (embedResult.success) {
+          setStatusMessage(`✅ Successfully uploaded and embedded ${successCount} files!`);
+          console.log('Embedding successful:', embedResult);
+          
+          if (failCount === 0) {
+            alert(`Successfully uploaded and embedded ${successCount} files in project "${selectedProject.name}"! Files are ready for chat.`);
+          } else {
+            alert(`Uploaded and embedded ${successCount} files successfully in project "${selectedProject.name}". ${failCount} files failed to upload but embedded files are ready for chat.`);
+          }
+        } else {
+          setStatusMessage(`⚠️ Files uploaded but embedding failed: ${embedResult.message}`);
+          console.error('Embedding failed:', embedResult);
+          
+          if (failCount === 0) {
+            alert(`Successfully uploaded ${successCount} files to project "${selectedProject.name}", but embedding failed: ${embedResult.message}. You can try embedding later.`);
+          } else {
+            alert(`Uploaded ${successCount} files to project "${selectedProject.name}" but embedding failed. ${failCount} files also failed to upload.`);
+          }
+        }
       } else {
-        alert(`Uploaded ${successCount} files successfully to project "${selectedProject.name}". ${failCount} files failed to upload to S3 but are available locally.`);
+        setStatusMessage('❌ No files were successfully uploaded');
+        alert(`All file uploads failed. Please try again.`);
       }
+
+      // Clear status after a delay
+      setTimeout(() => setStatusMessage(''), 5000);
+
+      onFilesUploaded(filesWithContent);
 
     } catch (error) {
       console.error('Upload process failed:', error);
       alert(`Upload failed: ${error.message}`);
+      setStatusMessage('❌ Upload failed');
+      setTimeout(() => setStatusMessage(''), 5000);
     } finally {
       setIsUploading(false);
+      setIsEmbedding(false);
       setUploadProgress({});
     }
   }, [onFilesUploaded, auth.user, selectedProject]);
@@ -139,7 +220,7 @@ const FileUploader = ({ onFilesUploaded }) => {
   const { getRootProps, getInputProps, isDragActive: dropzoneActive } = useDropzone({
     onDrop,
     multiple: true,
-    disabled: isUploading || !selectedProject,
+    disabled: isUploading || isEmbedding || !selectedProject,
     noClick: false,
     noKeyboard: false
   });
@@ -150,6 +231,12 @@ const FileUploader = ({ onFilesUploaded }) => {
     return Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length);
   };
 
+  const getCurrentStatus = () => {
+    if (isEmbedding) return 'embedding';
+    if (isUploading) return 'uploading';
+    return 'ready';
+  };
+
   return (
     <div className="file-uploader">
       <ProjectManager 
@@ -158,9 +245,15 @@ const FileUploader = ({ onFilesUploaded }) => {
         onProjectCreate={handleProjectCreate}
       />
       
+      {statusMessage && (
+        <div className={`status-message ${statusMessage.includes('✅') ? 'success' : statusMessage.includes('❌') || statusMessage.includes('⚠️') ? 'error' : 'info'}`}>
+          {statusMessage}
+        </div>
+      )}
+      
       <div 
         {...getRootProps()} 
-        className={`dropzone ${dropzoneActive || isDragActive ? 'active' : ''} ${isUploading ? 'uploading' : ''} ${!selectedProject ? 'disabled' : ''}`}
+        className={`dropzone ${dropzoneActive || isDragActive ? 'active' : ''} ${getCurrentStatus()} ${!selectedProject ? 'disabled' : ''}`}
       >
         <input 
           {...getInputProps()} 
@@ -174,6 +267,14 @@ const FileUploader = ({ onFilesUploaded }) => {
               <h3>Select a Project First</h3>
               <p>Please select or create a project above before uploading files</p>
               <p className="help-text">Projects help organize your markdown files in S3</p>
+            </div>
+          ) : isEmbedding ? (
+            <div className="embedding-progress">
+              <div className="upload-icon">🧠</div>
+              <h3>Embedding files for search...</h3>
+              <div className="embedding-spinner"></div>
+              <p>Processing files to enable AI chat functionality</p>
+              <p className="progress-detail">This may take a moment...</p>
             </div>
           ) : isUploading ? (
             <div className="upload-progress">
@@ -197,7 +298,7 @@ const FileUploader = ({ onFilesUploaded }) => {
                 <div>
                   <h3>Drop your files or folders here!</h3>
                   <p>Release to upload to "{selectedProject.name}" (only .md files will be processed)</p>
-                  <p className="s3-info">Files will be securely stored in your S3 bucket</p>
+                  <p className="s3-info">Files will be securely stored and embedded for AI chat</p>
                 </div>
               ) : (
                 <div>
@@ -205,6 +306,7 @@ const FileUploader = ({ onFilesUploaded }) => {
                   <p>or <span className="click-text">click to browse</span></p>
                   <p className="file-types">Automatically filters for .md files only</p>
                   <p className="s3-info">✅ Files will be stored in project: <strong>{selectedProject.name}</strong></p>
+                  <p className="embed-info">🧠 Files will be automatically embedded for AI chat</p>
                   <div className="upload-options">
                     <div className="option">📄 Individual files</div>
                     <div className="option">📂 Entire folders</div>
