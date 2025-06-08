@@ -15,8 +15,8 @@ from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.prompts import ChatPromptTemplate
 load_dotenv()
 
-def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str) -> str:
-    # 1) Load secrets
+def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = False) -> str:
+    # 1) Load secrets uvicorn app.main:app --host 0.0.0.0 --port 8000
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     qdrant_host    = os.getenv("QDRANT_HOST")
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -25,7 +25,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     redis_password = os.getenv("REDIS_PASSWORD2", "")
     collection_name = "splitter"
 
-    # 2) Initialize Redis‐backed memory buffer
+    # 2) Redis-backed memory buffer
     chat_store = RedisChatStore(
         redis_url=f"redis://default:{redis_password}@{redis_host}:{redis_port}",
         ttl=3600
@@ -35,14 +35,14 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         chat_store_key=session_id
     )
 
-    # 3) Put the new user message into memory
+    # 3) Add user message to memory
     memory.put(ChatMessage(role=MessageRole.USER, content=question))
 
-    # 4) Initialize Qdrant‐based VectorStore
+    # 4) Qdrant VectorStore
     qdrant_client = QdrantClient(url=qdrant_host, api_key=qdrant_api_key)
     vector_store  = QdrantVectorStore(client=qdrant_client, collection_name=collection_name)
 
-    # 5) Configure LlamaIndex’s LLM + Embedding settings
+    # 5) LLM + Embeddings
     Settings.llm = OpenAI(
         api_key=openai_api_key,
         model="gpt-3.5-turbo",
@@ -53,28 +53,40 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         api_key=openai_api_key
     )
 
-    # 6) Build a Retriever that filters by user_id & project_folder
+    # 6) Retriever with filters
     index = VectorStoreIndex.from_vector_store(vector_store)
     retriever = VectorIndexRetriever(
         index=index,
-        similarity_top_k=5,   # retrieve up to 5 candidates
+        similarity_top_k=5,
         filters=MetadataFilters(filters=[
             MetadataFilter(key="user_id", value=str(user_id)),
             MetadataFilter(key="project_folder", value=project_folder),
         ])
     )
 
-    # 7) Retrieve top‐k and check similarity scores
-    #    NOTE: `retrieve()` returns a list of NodeWithScore objects,
-    #    where `.score` is the similarity value (0 to 1).
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.35
+    SCORE_THRESHOLD = 0.5
 
-    # If there are no candidates or the top candidate’s score is < threshold → fallback
-    if not candidates or candidates[0].score < SCORE_THRESHOLD:
-        # ——————————————————————————————————————————————
-        # Fallback to chat‐only: LLM sees full conversation history
-        # ——————————————————————————————————————————————
+    if debug:
+        print(f"\n🔍 Retrieved {len(candidates)} candidates")
+        print("\n📊 All retrieved candidates with scores:")
+        for i, c in enumerate(candidates):
+            content_preview = c.node.get_content()[:100] + "..." if len(c.node.get_content()) > 100 else c.node.get_content()
+            print(f"\nCandidate {i+1}:")
+            print(f"Score: {c.score:.3f}")
+            print(f"Content: {content_preview}")
+            print(f"Metadata: {c.node.metadata}")
+
+    # Filter candidates by similarity score
+    filtered_candidates = [c for c in candidates if c.score >= SCORE_THRESHOLD]
+    
+    if debug:
+        print(f"\n📈 Filtered to {len(filtered_candidates)} candidates above threshold {SCORE_THRESHOLD}")
+        for i, c in enumerate(filtered_candidates):
+            print(f"Filtered Candidate {i+1} score: {c.score:.3f}")
+    
+    # If no candidates meet the threshold, use memory-only approach
+    if not filtered_candidates:
         history_messages = [
             ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content)
             for msg in memory.get()
@@ -84,25 +96,24 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         llm = Settings.llm
         llm_response = llm.chat(messages=history_messages)
 
-        # Extract assistant text (either .content or .response)
-        if hasattr(llm_response, "content"):
-            assistant_text = llm_response.content
-        else:
-            assistant_text = llm_response.message.content
+        assistant_text = getattr(llm_response, "content", None)
+        if not assistant_text:
+            assistant_text = getattr(getattr(llm_response, "message", {}), "content", "")
 
-        # Store the assistant response in memory
-        memory.put(ChatMessage(role="assistant", content=assistant_text))
+        memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
+
+        if debug:
+            print_chat_history(memory, session_id)
+
         return assistant_text
 
-    # ——————————————————————————————————————————————
-    # Otherwise: At least one document ≥ SCORE_THRESHOLD → do RAG
-    # ——————————————————————————————————————————————
+    # 8) RAG prompt setup
     qa_prompt = ChatPromptTemplate(
         message_templates=[
             ChatMessage(
                 role=MessageRole.SYSTEM,
                 content=(
-                    "You are a creative worldbuilding assistant for the Egothare fantasy setting.\n"
+                    "You are a creative worldbuilding assistant for writers.\n"
                     "Here is some relevant context to help you answer:\n"
                     "{context_str}\n\n"
                     "Below is the conversation so far:\n"
@@ -117,35 +128,42 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         ]
     )
 
-    # 8) Create the RetrieverQueryEngine with memory
+    # 9) Query engine with memory
     query_engine = RetrieverQueryEngine.from_args(
         retriever=retriever,
         text_qa_template=qa_prompt,
         memory=memory
     )
 
-    # 9) Run the RAG‐style query
     response = query_engine.query(question)
-
-    # 10) Store the assistant’s reply in memory
-    memory.put(ChatMessage(role="assistant", content=response.response))
-
-    # 11) (Optional) Debug: print the final assembled prompt
-    history_list = memory.get()
-    chat_history_text = "\n".join(
-        f"{msg.role.value}: {msg.content}"
-        for msg in history_list
-    )
-    assembled_prompt = qa_prompt.format_messages(
-        context_str="(optional context)",
-        query_str=question,
-        chat_history=chat_history_text
-    )
-    print("🚨 Assembled prompt before LLM call:")
-    for msg in assembled_prompt:
-        print(f"{msg.role}: {msg.content}")
-
-    # 12) Return the assistant’s RAG answer
     assistant_text = getattr(response, "response", getattr(response, "message", response))
-    memory.put(ChatMessage(role="assistant", content=assistant_text))
+
+    memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
+
+    if debug:
+        history_list = memory.get()
+        context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
+        chat_history_text = "\n".join(
+            f"{getattr(msg.role, 'value', str(msg.role)).upper()}: {msg.content}"
+            for msg in history_list
+        )
+        assembled_prompt = qa_prompt.format_messages(
+            context_str=context_str,
+            query_str=question,
+            chat_history=chat_history_text
+        )
+
+        print("\n🚨 Assembled prompt before LLM call:")
+        for msg in assembled_prompt:
+            print(f"{msg.role}: {msg.content}\n")
+
+        print_chat_history(memory, session_id)
+
     return assistant_text
+
+
+def print_chat_history(memory: ChatMemoryBuffer, session_id: str):
+    print(f"\n🧠 Chat History for Session `{session_id}`:\n" + "-" * 40)
+    for msg in memory.get():
+        role_str = getattr(msg.role, 'value', str(msg.role)).upper()
+        print(f"{role_str}: {msg.content}\n")
