@@ -31,3 +31,5 @@ And when the sky cracked open and the gods returned, it was said they found two 
   
 
 To this day, the Oath of Stone and Flame is whispered in moments of desperation. Not as a prayer to gods—but in memory of the two who held the line when even the heavens turned away.
+
+

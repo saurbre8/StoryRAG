@@ -1,3 +1,34 @@
+/**
+ * S3 Service
+ * 
+ * Features:
+ * - Secure file uploads using AWS Cognito identity credentials
+ * - Project-based file organization with user isolation
+ * - Markdown file storage and retrieval for worldbuilding content
+ * - Project metadata management (.project files)
+ * - Progress tracking for file uploads
+ * - Comprehensive error handling and validation
+ * - User-specific folder structure (users/{userId}/{projectName}/)
+ * - File listing and search capabilities within projects
+ * - Project creation and management operations
+ * 
+ * File Structure:
+ * - users/{userId}/ - User's root folder
+ * - users/{userId}/{projectName}/ - Project folders
+ * - users/{userId}/{projectName}/.project - Project metadata file
+ * - users/{userId}/{projectName}/file.md - Project files
+ * 
+ * Authentication:
+ * - Uses AWS Cognito Identity Pool for temporary credentials
+ * - Integrates with Cognito User Pool for user authentication
+ * - Provides secure, user-isolated access to S3 resources
+ * 
+ * Integration:
+ * - Works with FileUploader for file uploads
+ * - Provides data for ProjectManager component
+ * - Supplies file content to EditTab for viewing
+ * - Coordinates with embedService for AI processing
+ */
 import AWS from 'aws-sdk';
 
 class S3Service {
@@ -170,13 +201,15 @@ class S3Service {
     }
   }
 
-  // Upload file content to a specific project
-  async uploadFileContentToProject(fileName, content, userId, projectName, onProgress = null) {
+  // Upload file content to a specific project with folder structure
+  async uploadFileContentToProject(fileName, content, userId, projectName, filePath = null, onProgress = null) {
     if (!this.s3) {
       throw new Error('S3 service not initialized');
     }
 
-    const key = `${this.getProjectPrefix(userId, projectName)}${fileName}`;
+    // Use the full path if provided, otherwise just the filename
+    const fileKey = filePath || fileName;
+    const key = `${this.getProjectPrefix(userId, projectName)}${fileKey}`;
     
     const uploadParams = {
       Bucket: this.bucketName,

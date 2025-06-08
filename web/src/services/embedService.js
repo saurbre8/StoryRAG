@@ -1,3 +1,23 @@
+/**
+ * Embed Service
+ * 
+ * Features:
+ * - Triggers embedding processes after file uploads
+ * - Creates vector representations of project content for AI search
+ * - Handles long-running embedding operations with extended timeouts
+ * - Provides safe error handling with user-friendly responses
+ * - Integrates with the same backend server as chat functionality
+ * - Enables RAG (Retrieval Augmented Generation) capabilities
+ * 
+ * How it works:
+ * 1. After files are uploaded to S3, this service tells the backend to process them
+ * 2. Backend reads files from S3 and creates vector embeddings
+ * 3. Embeddings are stored in a vector database for fast similarity search
+ * 4. Chat service can then find relevant content to answer user questions
+ * 
+ * API Endpoints:
+ * - POST /embed - Process project files and create embeddings
+ */
 class EmbedService {
   constructor() {
     this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://54.226.223.245:8000';

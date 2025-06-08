@@ -1,3 +1,20 @@
+/**
+ * Chat API Service
+ * 
+ * Features:
+ * - Sends user messages to the AI bot with project context
+ * - Handles API health monitoring and connection status
+ * - Manages request timeouts and error handling
+ * - Formats requests with user ID, project context, and questions
+ * - Normalizes bot responses for frontend consumption
+ * - Provides fallback mechanisms for connection issues
+ * - Configurable API endpoint via environment variables
+ * 
+ * API Endpoints:
+ * - POST /chat - Send messages to the AI bot
+ * - GET /health - Check if the bot server is online
+ * - GET /info - Get API configuration information
+ */
 class ChatApiService {
   constructor() {
     // Use the EC2 instance URL as default

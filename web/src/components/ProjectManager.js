@@ -1,3 +1,21 @@
+/**
+ * ProjectManager Component
+ * 
+ * A comprehensive project management interface that handles project creation, selection,
+ * and organization within the StoryRAG application. This component serves as the central
+ * hub for managing worldbuilding projects stored in AWS S3.
+ * 
+ * Features:
+ * - Project listing and selection dropdown
+ * - New project creation with name and description
+ * - Integration with AWS S3 for project storage
+ * - Project validation and naming rules
+ * - Real-time project loading from cloud storage
+ * - Project metadata display (creation date, file count)
+ * - Form validation and error handling
+ * - Auto-selection of newly created projects
+ * - User-specific project isolation
+ */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
