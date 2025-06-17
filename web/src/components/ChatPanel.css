@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   background: #252526;
+  color: #d4d4d4;
 }
 
 .chat-header {
@@ -12,6 +13,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .chat-title {
@@ -40,11 +42,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
 }
 
 .close-chat:hover {
   background: #37373d;
   color: #d4d4d4;
+  transform: scale(1.1);
 }
 
 .chat-content {
@@ -55,19 +59,22 @@
 }
 
 .chat-info {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #3e3e42;
   background: #2d2d30;
+  flex-shrink: 0;
 }
 
 .chat-info p {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #858585;
+  line-height: 1.4;
 }
 
 .chat-info strong {
   color: #d4d4d4;
+  font-weight: 600;
 }
 
 /* Override chat styles to match VSCode theme */

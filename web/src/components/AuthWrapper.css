@@ -13,10 +13,51 @@
 .app-header-authenticated {
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
-  padding: 0;
+  padding: 2px;
   margin: 0;
   flex-shrink: 0;
   width: 100%;
+  position: relative;
+}
+
+/* Animated gradient line under header */
+.app-header-authenticated::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    #667eea 0%, 
+    #764ba2 25%, 
+    #0e639c 50%, 
+    #667eea 75%, 
+    #764ba2 100%
+  );
+  background-size: 200% 100%;
+  animation: gradientWave 6s ease-in-out infinite;
+}
+
+@keyframes gradientWave {
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.8;
+  }
+  25% {
+    opacity: 1;
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 0.9;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.8;
+  }
 }
 
 .header-content {
@@ -257,5 +298,10 @@
   .features {
     flex-direction: column;
     gap: 1rem;
+  }
+  
+  /* Reduce animation intensity on mobile */
+  .app-header-authenticated::after {
+    animation-duration: 4s;
   }
 } 
