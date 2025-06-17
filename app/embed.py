@@ -205,6 +205,7 @@ def upload_to_qdrant(embedded_chunks, client, collection_name, debug=False):
 def get_existing_vectors(client, collection_name, user_id, project_folder=None, debug=False):
     """
     Get all existing vectors for a user/project from Qdrant.
+    Handles pagination to get all vectors.
     """
     filter_conditions = [
         FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))
@@ -224,22 +225,39 @@ def get_existing_vectors(client, collection_name, user_id, project_folder=None, 
         if project_folder:
             print(f"Project folder: {project_folder}")
     
-    # Get all points with their metadata
-    points = client.scroll(
-        collection_name=collection_name,
-        filter=filter,
-        with_payload=True,
-        with_vectors=False
-    )[0]
+    # Get all points with their metadata using pagination
+    all_points = []
+    next_page_offset = None
+    
+    while True:
+        # Get a page of results
+        response = client.scroll(
+            collection_name=collection_name,
+            scroll_filter=filter,
+            with_payload=True,
+            with_vectors=False,
+            limit=100,
+            offset=next_page_offset
+        )
+        
+        points, next_page_offset = response
+        
+        # Add points from this page
+        all_points.extend(points)
+        
+        # If no more pages, break
+        if not next_page_offset:
+            break
     
     if debug:
-        print(f"📊 Found {len(points)} existing vectors")
+        print(f"📊 Found {len(all_points)} existing vectors")
     
-    return points
+    return all_points
 
 def cleanup_deleted_files(client, collection_name, user_id, project_folder=None, debug=False):
     """
     Remove vectors for files that no longer exist in S3.
+    Returns information about deleted files.
     """
     # Get all files currently in S3
     prefix = f"users/{user_id}/"
@@ -260,14 +278,20 @@ def cleanup_deleted_files(client, collection_name, user_id, project_folder=None,
     
     # Find vectors to delete (files that exist in Qdrant but not in S3)
     vectors_to_delete = []
+    deleted_files = set()  # Track which files were deleted
+    
     for point in existing_vectors:
         source = point.payload.get("source")
         if source and source not in existing_s3_files:
             vectors_to_delete.append(point.id)
+            deleted_files.add(source)
     
     if vectors_to_delete:
         if debug:
             print(f"\n🗑️ Found {len(vectors_to_delete)} vectors to delete")
+            print("\nDeleted files:")
+            for file in sorted(deleted_files):
+                print(f"  - {file}")
         
         # Delete vectors in batches
         for i in range(0, len(vectors_to_delete), 100):
@@ -282,6 +306,11 @@ def cleanup_deleted_files(client, collection_name, user_id, project_folder=None,
     else:
         if debug:
             print("\n✨ No vectors to delete")
+    
+    return {
+        "deleted_files": list(deleted_files),
+        "deleted_vectors": len(vectors_to_delete)
+    }
 
 # === MAIN SCRIPT ===
 def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = False):
@@ -294,14 +323,20 @@ def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = Fa
     # First, clean up any deleted files
     if debug:
         print("\n🧹 Cleaning up vectors for deleted files...")
-    cleanup_deleted_files(client, COLLECTION_NAME, user_id, project_folder, debug)
+    cleanup_result = cleanup_deleted_files(client, COLLECTION_NAME, user_id, project_folder, debug)
 
     if debug:
         print("\n🧠 Filtering out already uploaded chunks...")
     new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks, debug)
 
+    if not new_chunks and not cleanup_result["deleted_vectors"]:
+        return {"message": "✅ No changes needed."}
+
     if not new_chunks:
-        return {"message": "✅ No new content to upload."}
+        return {
+            "message": f"✅ Cleaned up {cleanup_result['deleted_vectors']} vectors from deleted files.",
+            "deleted_files": cleanup_result["deleted_files"]
+        }
 
     if debug:
         print(f"🧠 Embedding {len(new_chunks)} new chunks...")
@@ -311,4 +346,9 @@ def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = Fa
         print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
     upload_to_qdrant(embedded, client, COLLECTION_NAME, debug)
 
-    return {"message": f"✅ Uploaded {len(embedded)} chunks to Qdrant."}
+    return {
+        "message": f"✅ Uploaded {len(embedded)} chunks to Qdrant.",
+        "deleted_files": cleanup_result["deleted_files"],
+        "deleted_vectors": cleanup_result["deleted_vectors"],
+        "new_chunks": len(embedded)
+    }
