@@ -40,6 +40,29 @@
   background: #3e3e42;
 }
 
+/* Header buttons container */
+.header-buttons {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Upload button styling - same as new-file-btn */
+.upload-file-btn {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.upload-file-btn:hover {
+  background: #3e3e42;
+}
+
 .explorer-content {
   flex: 1;
   overflow-y: auto;
@@ -437,4 +460,85 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+
+/* Delete button styling */
+.delete-file-btn {
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.file-item:hover .delete-file-btn {
+  opacity: 1;
+}
+
+.delete-file-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+.file-item.selected .delete-file-btn {
+  color: #ccc;
+}
+
+.file-item.selected .delete-file-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+/* Delete modal styles */
+.delete-file-modal {
+  background: #2d2d30;
+  color: #cccccc;
+  border-radius: 6px;
+  width: 450px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.delete-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.warning-icon {
+  font-size: 24px;
+  color: #ff9800;
+  flex-shrink: 0;
+}
+
+.warning-text p {
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.warning-text p:last-child {
+  margin-bottom: 0;
+  color: #999;
+  font-size: 13px;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
 } 

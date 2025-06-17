@@ -253,6 +253,77 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
     }
   };
 
+  const handleFileDelete = async (file) => {
+    if (!file || !auth.user) return;
+    
+    try {
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Delete the file from S3
+      await s3Service.deleteFile(file.key);
+
+      // If the deleted file was currently selected, clear the selection
+      if (selectedFile?.key === file.key) {
+        setSelectedFile(null);
+        setFileContent('');
+        setSaveStatus('saved');
+      }
+
+      // Reload the file list to reflect the deletion
+      await loadProjectFiles();
+
+      console.log(`Successfully deleted ${file.name}`);
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+      alert(`Failed to delete file: ${error.message}`);
+    }
+  };
+
+  const handleFileUpload = async (fileName, content, filePath, fileType) => {
+    if (!project || !auth.user) return;
+    
+    try {
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Upload the file to S3
+      await s3Service.uploadFileContentToProject(
+        fileName,
+        content,
+        userId,
+        project.name,
+        filePath
+      );
+
+      // Reload the file list to include the new file
+      await loadProjectFiles();
+
+      // Find and select the newly uploaded file
+      const newFileKey = `users/${userId}/${project.name}/${filePath}`;
+      
+      // Wait a moment for the file list to update, then select the new file
+      setTimeout(async () => {
+        const updatedFiles = await s3Service.listProjectFiles(userId, project.name);
+        const foundFile = updatedFiles.find(f => f.key === newFileKey);
+        if (foundFile) {
+          setFiles(updatedFiles);
+          await handleFileSelect(foundFile);
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="vscode-editor">
       {/* Top Bar */}
@@ -305,6 +376,8 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
             isLoading={isLoading}
             onFileCreate={handleFileCreate}
             onFileMove={handleFileMove}
+            onFileDelete={handleFileDelete}
+            onFileUpload={handleFileUpload}
             project={project}
           />
         </div>

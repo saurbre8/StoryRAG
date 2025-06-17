@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './FileExplorer.css';
 
-const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCreate, onFileMove, project }) => {
+const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCreate, onFileMove, onFileDelete, onFileUpload, project }) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set(['root']));
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newFileName, setNewFileName] = useState('');
@@ -9,6 +9,9 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
   const [draggedFile, setDraggedFile] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [fileInputRef, setFileInputRef] = useState(null);
 
   const buildFolderStructure = (files) => {
     const root = { name: 'root', children: {}, files: [] };
@@ -176,6 +179,73 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
     }
   };
 
+  const handleDeleteClick = (e, file) => {
+    e.stopPropagation(); // Prevent file selection
+    setFileToDelete(file);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (fileToDelete && onFileDelete) {
+      try {
+        await onFileDelete(fileToDelete);
+        setShowDeleteModal(false);
+        setFileToDelete(null);
+      } catch (error) {
+        console.error('Failed to delete file:', error);
+        alert('Failed to delete file. Please try again.');
+      }
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setFileToDelete(null);
+  };
+
+  const handleFileUpload = async (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !onFileUpload) {
+      return;
+    }
+
+    try {
+      for (const file of files) {
+        // Read file content
+        const content = await readFileContent(file);
+        
+        // Determine file path based on selected folder
+        const filePath = selectedFolder ? `${selectedFolder}/${file.name}` : file.name;
+        
+        // Call the upload handler
+        await onFileUpload(file.name, content, filePath, file.type);
+      }
+      
+      // Clear the file input
+      if (fileInputRef) {
+        fileInputRef.value = '';
+      }
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      alert('Failed to upload file. Please try again.');
+    }
+  };
+
+  const readFileContent = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.onerror = (e) => reject(e);
+      reader.readAsText(file);
+    });
+  };
+
+  const triggerFileUpload = () => {
+    if (fileInputRef) {
+      fileInputRef.click();
+    }
+  };
+
   const renderFolderContents = (folder, depth = 0) => {
     const folderPath = folder.fullPath || 'root';
     const isExpanded = expandedFolders.has(folderPath);
@@ -246,6 +316,14 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
             <span className="drag-handle">⋮⋮</span>
             <span className="file-icon">📄</span>
             <span className="file-name">{file.name}</span>
+            {/* Add delete button */}
+            <button
+              className="delete-file-btn"
+              onClick={(e) => handleDeleteClick(e, file)}
+              title="Delete file"
+            >
+              🗑️
+            </button>
           </div>
         ))}
       </div>
@@ -271,13 +349,30 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
       <div className="explorer-header">
         <h4>Explorer</h4>
         {project && (
-          <button 
-            className="new-file-btn"
-            onClick={() => setShowCreateModal(true)}
-            title="Create new file"
-          >
-            ➕
-          </button>
+          <div className="header-buttons">
+            <button 
+              className="upload-file-btn"
+              onClick={triggerFileUpload}
+              title="Upload file"
+            >
+              ⬆
+            </button>
+            <button 
+              className="new-file-btn"
+              onClick={() => setShowCreateModal(true)}
+              title="Create new file"
+            >
+              ✚
+            </button>
+            <input
+              type="file"
+              ref={(ref) => setFileInputRef(ref)}
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+              multiple
+              accept=".md,.txt,.json,.js,.jsx,.ts,.tsx,.py,.html,.css,.yml,.yaml"
+            />
+          </div>
         )}
       </div>
       
@@ -384,6 +479,48 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
                 disabled={!newFileName.trim()}
               >
                 Create File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="delete-file-modal">
+            <div className="modal-header">
+              <h3>Delete File</h3>
+              <button 
+                className="close-btn"
+                onClick={handleCancelDelete}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="delete-warning">
+                <div className="warning-icon">⚠️</div>
+                <div className="warning-text">
+                  <p>Are you sure you want to delete <strong>"{fileToDelete?.name}"</strong>?</p>
+                  <p>This action cannot be undone.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={handleCancelDelete}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-btn"
+                onClick={handleConfirmDelete}
+              >
+                Delete File
               </button>
             </div>
           </div>
