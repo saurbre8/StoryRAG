@@ -173,6 +173,86 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
 
   const saveStatusInfo = getSaveStatusDisplay();
 
+  const handleFileCreate = async (fileName, content, filePath) => {
+    if (!project || !auth.user) return;
+    
+    try {
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Create the file in S3
+      await s3Service.uploadFileContentToProject(
+        fileName,
+        content,
+        userId,
+        project.name,
+        filePath
+      );
+
+      // Reload the file list to include the new file
+      await loadProjectFiles();
+
+      // Find and select the newly created file
+      const newFileKey = `users/${userId}/${project.name}/${filePath}`;
+      
+      // Wait a moment for the file list to update, then select the new file
+      setTimeout(async () => {
+        const updatedFiles = await s3Service.listProjectFiles(userId, project.name);
+        const foundFile = updatedFiles.find(f => f.key === newFileKey);
+        if (foundFile) {
+          setFiles(updatedFiles);
+          await handleFileSelect(foundFile);
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('Failed to create file:', error);
+      throw error;
+    }
+  };
+
+  const handleFileMove = async (file, currentPath, newPath) => {
+    if (!project || !auth.user) return;
+    
+    try {
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Calculate new S3 key
+      const newFileKey = `users/${userId}/${project.name}/${newPath}`;
+
+      // Use S3 native move operation (copy + delete, no download)
+      await s3Service.moveFile(file.key, newFileKey);
+
+      // Reload files to reflect the change
+      await loadProjectFiles();
+
+      // If the moved file was selected, select it in its new location
+      if (selectedFile?.key === file.key) {
+        setTimeout(async () => {
+          const updatedFiles = await s3Service.listProjectFiles(userId, project.name);
+          const movedFile = updatedFiles.find(f => f.key === newFileKey);
+          if (movedFile) {
+            await handleFileSelect(movedFile);
+          }
+        }, 500);
+      }
+
+      console.log(`Successfully moved ${file.name} to ${newPath}`);
+    } catch (error) {
+      console.error('Failed to move file:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="vscode-editor">
       {/* Top Bar */}
@@ -223,6 +303,9 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
             selectedFile={selectedFile}
             onFileSelect={handleFileSelect}
             isLoading={isLoading}
+            onFileCreate={handleFileCreate}
+            onFileMove={handleFileMove}
+            project={project}
           />
         </div>
 

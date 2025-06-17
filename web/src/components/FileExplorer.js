@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import './FileExplorer.css';
 
-const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading }) => {
+const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCreate, onFileMove, project }) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set(['root']));
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState('');
+  const [draggedFile, setDraggedFile] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const buildFolderStructure = (files) => {
     const root = { name: 'root', children: {}, files: [] };
@@ -37,6 +43,21 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading }) => {
     return root;
   };
 
+  const getAllFolderPaths = (folder, paths = [], currentPath = '') => {
+    // Add current folder if it's not root
+    if (currentPath) {
+      paths.push(currentPath);
+    }
+    
+    // Recursively add child folders
+    Object.values(folder.children).forEach(childFolder => {
+      const childPath = currentPath ? `${currentPath}/${childFolder.name}` : childFolder.name;
+      getAllFolderPaths(childFolder, paths, childPath);
+    });
+    
+    return paths;
+  };
+
   const toggleFolder = (folderPath) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(folderPath)) {
@@ -47,37 +68,182 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading }) => {
     setExpandedFolders(newExpanded);
   };
 
+  const handleCreateFile = async () => {
+    if (!newFileName.trim()) {
+      alert('Please enter a file name');
+      return;
+    }
+
+    // Ensure file has .md extension
+    const fileName = newFileName.endsWith('.md') ? newFileName : `${newFileName}.md`;
+    const filePath = selectedFolder ? `${selectedFolder}/${fileName}` : fileName;
+
+    try {
+      await onFileCreate(fileName, '', filePath);
+      setShowCreateModal(false);
+      setNewFileName('');
+      setSelectedFolder('');
+    } catch (error) {
+      console.error('Failed to create file:', error);
+      alert('Failed to create file. Please try again.');
+    }
+  };
+
+  // Drag and Drop Handlers
+  const handleFileDragStart = (e, file) => {
+    e.stopPropagation();
+    setDraggedFile(file);
+    setIsDragging(true);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', file.key);
+    
+    // Add some visual feedback
+    e.target.classList.add('dragging');
+  };
+
+  const handleFileDragEnd = (e) => {
+    e.stopPropagation();
+    setDraggedFile(null);
+    setIsDragging(false);
+    setDropTarget(null);
+    
+    // Remove visual feedback
+    e.target.classList.remove('dragging');
+  };
+
+  const handleFolderDragOver = (e, folderPath) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (draggedFile) {
+      e.dataTransfer.dropEffect = 'move';
+      setDropTarget(folderPath);
+    }
+  };
+
+  const handleFolderDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Only clear drop target if we're actually leaving the folder
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDropTarget(null);
+    }
+  };
+
+  const handleFolderDrop = async (e, targetFolderPath) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedFile || !onFileMove) {
+      setDropTarget(null);
+      return;
+    }
+
+    try {
+      // Get current file path
+      const keyParts = draggedFile.key.split('/');
+      const currentPath = keyParts.slice(3).join('/');
+      const fileName = draggedFile.name;
+      
+      // Determine current folder
+      const currentFolderPath = currentPath.includes('/') 
+        ? currentPath.substring(0, currentPath.lastIndexOf('/'))
+        : '';
+      
+      // Don't move if dropping in the same folder
+      if (currentFolderPath === targetFolderPath) {
+        console.log('File is already in this folder');
+        setDropTarget(null);
+        return;
+      }
+
+      // Calculate new file path
+      const newFilePath = targetFolderPath ? `${targetFolderPath}/${fileName}` : fileName;
+      
+      console.log(`Moving file ${fileName} from "${currentFolderPath}" to "${targetFolderPath}"`);
+      
+      // Call the move handler
+      await onFileMove(draggedFile, currentPath, newFilePath);
+      
+    } catch (error) {
+      console.error('Failed to move file:', error);
+      alert(`Failed to move file: ${error.message}`);
+    } finally {
+      setDropTarget(null);
+      setDraggedFile(null);
+      setIsDragging(false);
+    }
+  };
+
   const renderFolderContents = (folder, depth = 0) => {
     const folderPath = folder.fullPath || 'root';
     const isExpanded = expandedFolders.has(folderPath);
+    const actualFolderPath = folderPath === 'root' ? '' : folderPath;
     
     return (
       <div key={folderPath} className="folder-contents">
         {/* Render subfolders */}
-        {Object.values(folder.children).map(childFolder => (
-          <div key={childFolder.fullPath} className="folder-item">
-            <div 
-              className="folder-header"
-              style={{ paddingLeft: `${depth * 16 + 8}px` }}
-              onClick={() => toggleFolder(childFolder.fullPath)}
-            >
-              <span className="folder-toggle">
-                {expandedFolders.has(childFolder.fullPath) ? '📂' : '📁'}
-              </span>
-              <span className="folder-name">{childFolder.name}</span>
+        {Object.values(folder.children).map(childFolder => {
+          const isChildDropTarget = dropTarget === childFolder.fullPath;
+          const isChildExpanded = expandedFolders.has(childFolder.fullPath);
+          const hasFiles = childFolder.files.length > 0;
+          const hasSubfolders = Object.keys(childFolder.children).length > 0;
+          
+          return (
+            <div key={childFolder.fullPath} className="folder-item">
+              <div 
+                className={`folder-header ${isChildDropTarget && draggedFile ? 'drop-target' : ''}`}
+                style={{ paddingLeft: `${depth * 20 + 8}px` }}
+                onClick={() => toggleFolder(childFolder.fullPath)}
+                onDragOver={(e) => handleFolderDragOver(e, childFolder.fullPath)}
+                onDragLeave={handleFolderDragLeave}
+                onDrop={(e) => handleFolderDrop(e, childFolder.fullPath)}
+              >
+                {/* Expansion arrow */}
+                <span className={`expansion-arrow ${isChildExpanded ? 'expanded' : 'collapsed'}`}>
+                  {(hasFiles || hasSubfolders) ? '▶' : ''}
+                </span>
+                
+                {/* Folder icon */}
+                <span className="folder-icon">📁</span>
+                
+                <span className="folder-name">{childFolder.name}</span>
+                
+                {/* File count indicator */}
+                {(hasFiles || hasSubfolders) && (
+                  <span className="folder-info">
+                    {hasFiles && <span className="file-count">({childFolder.files.length})</span>}
+                  </span>
+                )}
+                
+                {isChildDropTarget && draggedFile && (
+                  <span className="drop-indicator">📥</span>
+                )}
+              </div>
+              
+              {/* Folder contents with simple vertical line */}
+              {isChildExpanded && (hasFiles || hasSubfolders) && (
+                <div className="folder-content-container">
+                  {renderFolderContents(childFolder, depth + 1)}
+                </div>
+              )}
             </div>
-            {expandedFolders.has(childFolder.fullPath) && renderFolderContents(childFolder, depth + 1)}
-          </div>
-        ))}
+          );
+        })}
         
-        {/* Render files */}
+        {/* Render files - clean and simple */}
         {folder.files.map((file) => (
           <div 
             key={file.key}
-            className={`file-item ${selectedFile?.key === file.key ? 'selected' : ''}`}
-            style={{ paddingLeft: `${depth * 16 + 24}px` }}
+            className={`file-item ${selectedFile?.key === file.key ? 'selected' : ''} ${draggedFile?.key === file.key ? 'dragging' : ''}`}
+            style={{ paddingLeft: `${depth * 20 + 8}px` }}
             onClick={() => onFileSelect(file)}
+            draggable={true}
+            onDragStart={(e) => handleFileDragStart(e, file)}
+            onDragEnd={handleFileDragEnd}
           >
+            <span className="drag-handle">⋮⋮</span>
             <span className="file-icon">📄</span>
             <span className="file-name">{file.name}</span>
           </div>
@@ -98,20 +264,131 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading }) => {
   }
 
   const folderStructure = buildFolderStructure(files);
+  const folderPaths = getAllFolderPaths(folderStructure);
 
   return (
-    <div className="file-explorer">
+    <div className={`file-explorer ${isDragging ? 'dragging-active' : ''}`}>
       <div className="explorer-header">
         <h4>Explorer</h4>
+        {project && (
+          <button 
+            className="new-file-btn"
+            onClick={() => setShowCreateModal(true)}
+            title="Create new file"
+          >
+            ➕
+          </button>
+        )}
       </div>
       
-      <div className="explorer-content">
+      <div 
+        className={`explorer-content ${dropTarget === '' && draggedFile ? 'root-drop-target' : ''}`}
+        onDragOver={(e) => {
+          // Only handle root drop if not over a specific folder
+          if (draggedFile && !e.target.closest('.folder-header')) {
+            handleFolderDragOver(e, '');
+          }
+        }}
+        onDragLeave={(e) => {
+          // Only clear if leaving the entire explorer content
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            handleFolderDragLeave(e);
+          }
+        }}
+        onDrop={(e) => {
+          // Only handle root drop if not over a specific folder
+          if (draggedFile && !e.target.closest('.folder-header')) {
+            handleFolderDrop(e, '');
+          }
+        }}
+      >
         {files.length === 0 ? (
-          <div className="no-files">No files in this project</div>
+          <div className="no-files">
+            No files in this project
+            {project && (
+              <button 
+                className="create-first-file-btn"
+                onClick={() => setShowCreateModal(true)}
+              >
+                Create your first file
+              </button>
+            )}
+          </div>
         ) : (
           renderFolderContents(folderStructure)
         )}
       </div>
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-message">
+            📁 Drop on a folder or in empty space to move "{draggedFile?.name}"
+          </div>
+        </div>
+      )}
+
+      {/* Create File Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="create-file-modal">
+            <div className="modal-header">
+              <h3>Create New File</h3>
+              <button 
+                className="close-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="form-group">
+                <label>File Name</label>
+                <input
+                  type="text"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  placeholder="Enter file name (e.g., 'Character Notes')"
+                  autoFocus
+                />
+                <small>.md extension will be added automatically</small>
+              </div>
+
+              <div className="form-group">
+                <label>Location</label>
+                <select
+                  value={selectedFolder}
+                  onChange={(e) => setSelectedFolder(e.target.value)}
+                >
+                  <option value="">📁 Root folder</option>
+                  {folderPaths.map(path => (
+                    <option key={path} value={path}>
+                      📁 {path}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="modal-footer">
+              <button 
+                className="cancel-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="create-btn"
+                onClick={handleCreateFile}
+                disabled={!newFileName.trim()}
+              >
+                Create File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
