@@ -5,7 +5,7 @@
  * - Sends user messages to the AI bot with project context
  * - Handles API health monitoring and connection status
  * - Manages request timeouts and error handling
- * - Formats requests with user ID, project context, and questions
+ * - Formats requests with user ID, project context, session ID, and questions
  * - Normalizes bot responses for frontend consumption
  * - Provides fallback mechanisms for connection issues
  * - Configurable API endpoint via environment variables
@@ -28,9 +28,10 @@ class ChatApiService {
    * @param {string} params.message - User message
    * @param {string} params.userId - User ID
    * @param {string} params.projectName - Selected project name
+   * @param {string} params.sessionId - Chat session ID for conversation continuity
    * @returns {Promise<Object>} API response
    */
-  async sendMessage({ message, userId, projectName }) {
+  async sendMessage({ message, userId, projectName, sessionId }) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -39,6 +40,7 @@ class ChatApiService {
       const queryParams = new URLSearchParams({
         user_id: userId,
         project_folder: projectName,
+        session_id: sessionId,
         question: message
       });
 
