@@ -1,50 +1,35 @@
 import React, { useState } from 'react';
 import AuthWrapper from './components/AuthWrapper';
-import CreateTab from './components/CreateTab';
-import ChatTab from './components/ChatTab';
-import EditTab from './components/EditTab';
+import Homepage from './components/Homepage';
+import VSCodeEditor from './components/VSCodeEditor';
 import './App.css';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('create');
+  const [currentView, setCurrentView] = useState('homepage'); // 'homepage' or 'editor'
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  const handleProjectSelect = (project) => {
+    setSelectedProject(project);
+    setCurrentView('editor');
+  };
+
+  const handleBackToHome = () => {
+    setCurrentView('homepage');
+    setSelectedProject(null);
+  };
 
   return (
     <AuthWrapper>
-      <div className="App">
-        <main className="App-main">
-          <div className="app-content">
-            <div className="intro-section">
-              
-              <h2>StoryRAG Project Hub</h2>
-              <p>Create projects, chat with AI, and manage your worldbuilding files</p>
-              
-              <div className="tab-navigation">
-                <button 
-                  className={activeTab === 'create' ? 'active' : ''}
-                  onClick={() => setActiveTab('create')}
-                >
-                  📁 Create
-                </button>
-                <button 
-                  className={activeTab === 'chat' ? 'active' : ''}
-                  onClick={() => setActiveTab('chat')}
-                >
-                  💬 Chat
-                </button>
-                <button 
-                  className={activeTab === 'edit' ? 'active' : ''}
-                  onClick={() => setActiveTab('edit')}
-                >
-                  ✏️ Edit
-                </button>
-              </div>
-            </div>
-            
-            {activeTab === 'create' && <CreateTab />}
-            {activeTab === 'chat' && <ChatTab />}
-            {activeTab === 'edit' && <EditTab />}
-          </div>
-        </main>
+      <div className="App vscode-app">
+        {currentView === 'homepage' && (
+          <Homepage onProjectSelect={handleProjectSelect} />
+        )}
+        {currentView === 'editor' && (
+          <VSCodeEditor 
+            project={selectedProject} 
+            onBackToHome={handleBackToHome}
+          />
+        )}
       </div>
     </AuthWrapper>
   );

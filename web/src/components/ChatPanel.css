@@ -1,0 +1,131 @@
+.chat-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #252526;
+  color: #d4d4d4;
+}
+
+.chat-header {
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #d4d4d4;
+  font-size: 0.9rem;
+}
+
+.chat-icon {
+  font-size: 1rem;
+}
+
+.close-chat {
+  background: none;
+  border: none;
+  color: #858585;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.close-chat:hover {
+  background: #37373d;
+  color: #d4d4d4;
+  transform: scale(1.1);
+}
+
+.chat-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-info {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #3e3e42;
+  background: #2d2d30;
+  flex-shrink: 0;
+}
+
+.chat-info p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #858585;
+  line-height: 1.4;
+}
+
+.chat-info strong {
+  color: #d4d4d4;
+  font-weight: 600;
+}
+
+/* Override chat styles to match VSCode theme */
+.chat-panel .chat-container {
+  background: #252526;
+  border: none;
+  height: 100%;
+}
+
+.chat-panel .chat-header {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.chat-panel .chat-messages {
+  background: #252526;
+}
+
+.chat-panel .message {
+  border-bottom: 1px solid #3e3e42;
+}
+
+.chat-panel .message.user {
+  background: #2d2d30;
+}
+
+.chat-panel .message.assistant {
+  background: #1e1e1e;
+}
+
+.chat-panel .chat-input-container {
+  background: #2d2d30;
+  border-top: 1px solid #3e3e42;
+}
+
+.chat-panel .chat-input {
+  background: #3c3c3c;
+  border: 1px solid #565656;
+  color: #d4d4d4;
+}
+
+.chat-panel .chat-input:focus {
+  border-color: #0e639c;
+}
+
+.chat-panel .send-button {
+  background: #0e639c;
+  border: none;
+}
+
+.chat-panel .send-button:hover:not(:disabled) {
+  background: #1177bb;
+} 

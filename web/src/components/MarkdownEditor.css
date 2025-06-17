@@ -1,0 +1,380 @@
+.markdown-editor {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+
+.editor-tabs {
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  height: 35px;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.editor-tabs button {
+  background: none;
+  border: none;
+  color: #858585;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.editor-tabs button:hover {
+  color: #d4d4d4;
+}
+
+.editor-tabs button.active {
+  color: #d4d4d4;
+  border-bottom-color: #0e639c;
+}
+
+.tab-divider {
+  width: 1px;
+  height: 20px;
+  background: #3e3e42;
+  margin: 0 0.5rem;
+}
+
+.preview-info {
+  display: flex;
+  align-items: center;
+}
+
+.preview-badge {
+  background: #0e639c;
+  color: white;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.file-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #858585;
+  font-size: 0.9rem;
+}
+
+.file-icon {
+  font-size: 0.8rem;
+}
+
+.editor-body {
+  flex: 1;
+  overflow: hidden;
+  width: 100%;
+}
+
+.markdown-textarea {
+  width: 100%;
+  height: 100%;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: none;
+  outline: none;
+  padding: 1rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  tab-size: 2;
+  box-sizing: border-box;
+}
+
+.markdown-textarea::placeholder {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Enhanced Preview Styles */
+.markdown-preview {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  padding: 2rem;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.mkdocs-preview {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Headings with anchor links */
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  color: #569cd6;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  position: relative;
+  scroll-margin-top: 4rem;
+}
+
+.markdown-preview h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid #3e3e42;
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+}
+
+.markdown-preview h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid #3e3e42;
+  padding-bottom: 0.25rem;
+}
+
+.markdown-preview h3 {
+  font-size: 1.25rem;
+}
+
+.header-anchor {
+  position: absolute;
+  left: -1.5rem;
+  opacity: 0;
+  color: #858585;
+  text-decoration: none;
+  font-weight: normal;
+  transition: opacity 0.2s;
+}
+
+.markdown-preview h1:hover .header-anchor,
+.markdown-preview h2:hover .header-anchor,
+.markdown-preview h3:hover .header-anchor {
+  opacity: 1;
+}
+
+/* Text styling */
+.markdown-preview strong {
+  color: #dcdcaa;
+  font-weight: 600;
+}
+
+.markdown-preview em {
+  color: #ce9178;
+  font-style: italic;
+}
+
+.markdown-preview p {
+  margin-bottom: 1rem;
+}
+
+/* Code styling */
+.markdown-preview code {
+  background: #2d2d30;
+  color: #f8f8f2;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-preview pre {
+  background: #2d2d30;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border: 1px solid #3e3e42;
+}
+
+.markdown-preview pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Links */
+.markdown-preview a {
+  color: #4fc3f7;
+  text-decoration: none;
+}
+
+.markdown-preview a:hover {
+  text-decoration: underline;
+}
+
+/* Wiki links */
+.wiki-link {
+  color: #ce9178;
+  padding: 0.125rem 0.25rem;
+  border-radius: 3px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.wiki-link.valid {
+  background: rgba(206, 145, 120, 0.1);
+  border: 1px solid rgba(206, 145, 120, 0.3);
+}
+
+.wiki-link.invalid {
+  background: rgba(244, 135, 113, 0.1);
+  border: 1px solid rgba(244, 135, 113, 0.3);
+  color: #f48771;
+}
+
+/* Lists */
+.markdown-preview ul,
+.markdown-preview ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.markdown-preview li {
+  margin: 0.25rem 0;
+}
+
+/* Task lists */
+.markdown-preview .contains-task-list {
+  list-style: none;
+  padding-left: 1rem;
+}
+
+.markdown-preview .task-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.markdown-preview .task-list-item input[type="checkbox"] {
+  margin: 0;
+}
+
+/* Tables */
+.markdown-preview table {
+  border-collapse: collapse;
+  margin: 1rem 0;
+  width: 100%;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+  border: 1px solid #3e3e42;
+  padding: 0.5rem 1rem;
+  text-align: left;
+}
+
+.markdown-preview th {
+  background: #2d2d30;
+  font-weight: 600;
+}
+
+.markdown-preview tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Blockquotes and Admonitions */
+.markdown-preview blockquote {
+  margin: 1rem 0;
+  padding: 0 1rem;
+  border-left: 4px solid #3e3e42;
+  color: #b3b3b3;
+}
+
+.admonition {
+  margin: 1rem 0;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid;
+  overflow: hidden;
+}
+
+.admonition-title {
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.admonition-content {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admonition-note {
+  border-color: #4fc3f7;
+}
+
+.admonition-note .admonition-title {
+  background: rgba(79, 195, 247, 0.1);
+  color: #4fc3f7;
+}
+
+.admonition-tip {
+  border-color: #66bb6a;
+}
+
+.admonition-tip .admonition-title {
+  background: rgba(102, 187, 106, 0.1);
+  color: #66bb6a;
+}
+
+.admonition-warning {
+  border-color: #ffa726;
+}
+
+.admonition-warning .admonition-title {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+}
+
+.admonition-danger {
+  border-color: #f48771;
+}
+
+.admonition-danger .admonition-title {
+  background: rgba(244, 135, 113, 0.1);
+  color: #f48771;
+}
+
+/* Table of Contents placeholder */
+.toc-placeholder {
+  background: rgba(14, 99, 156, 0.1);
+  border: 1px solid rgba(14, 99, 156, 0.3);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: center;
+  color: #4fc3f7;
+}
+
+.toc-placeholder small {
+  display: block;
+  color: #858585;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .markdown-preview {
+    padding: 1rem;
+  }
+  
+  .header-anchor {
+    display: none;
+  }
+} 

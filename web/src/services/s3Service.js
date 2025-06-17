@@ -437,24 +437,57 @@ class S3Service {
     }
   }
 
-  // Delete a file
-  async deleteFile(key) {
+  // Delete a file from S3
+  async deleteFile(fileKey) {
     if (!this.s3) {
       throw new Error('S3 service not initialized');
     }
 
     const deleteParams = {
       Bucket: this.bucketName,
-      Key: key
+      Key: fileKey
     };
 
     try {
       await this.s3.deleteObject(deleteParams).promise();
-      console.log('File deleted successfully:', key);
+      console.log('File deleted successfully:', fileKey);
       return { success: true };
     } catch (error) {
       console.error('Error deleting file:', error);
       throw new Error(`Delete failed: ${error.message}`);
+    }
+  }
+
+  // Move a file from one location to another
+  async moveFile(oldKey, newKey) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    try {
+      // Copy object to new location (server-side operation, no download)
+      const copyParams = {
+        Bucket: this.bucketName,
+        CopySource: `${this.bucketName}/${oldKey}`,
+        Key: newKey,
+        MetadataDirective: 'COPY' // Copy all metadata from source
+      };
+
+      await this.s3.copyObject(copyParams).promise();
+      console.log(`File copied from ${oldKey} to ${newKey}`);
+
+      // Delete the original file
+      await this.deleteFile(oldKey);
+      console.log(`Original file deleted: ${oldKey}`);
+
+      return {
+        success: true,
+        oldKey: oldKey,
+        newKey: newKey
+      };
+    } catch (error) {
+      console.error('Error moving file:', error);
+      throw new Error(`Move failed: ${error.message}`);
     }
   }
 }
