@@ -1,7 +1,52 @@
+/* Global CSS Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: #1e1e1e;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+}
+
+.vscode-app {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  background: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Remove old styles when in VSCode mode */
+.vscode-app .App-header,
+.vscode-app .App-main,
+.vscode-app .app-content,
+.vscode-app .intro-section,
+.vscode-app .tab-navigation {
+  display: none;
+}
+
+/* Keep existing styles for compatibility (homepage) */
 .App {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  max-width: 100vw;
+  margin: auto;
+  padding: 2px 0px 0px 0px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 

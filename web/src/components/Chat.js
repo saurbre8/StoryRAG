@@ -5,7 +5,7 @@
  * 
  * Features:
  * - Real-time chat interface with message history
- * - Project selection for context-aware conversations
+ * - Context-aware conversations using the current project
  * - API health monitoring and connection status
  * - Message sending with loading states and error handling
  * - Auto-scrolling chat messages
@@ -19,16 +19,19 @@ import ProjectManager from './ProjectManager';
 import chatApiService from '../services/chatApiService';
 import './Chat.css';
 
-const Chat = () => {
+const Chat = ({ project = null }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
   const [apiStatus, setApiStatus] = useState('unknown'); // 'online', 'offline', 'unknown'
   const [connectionError, setConnectionError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
   const auth = useAuth();
+
+  // For standalone usage (when no project prop is provided)
+  const [selectedProject, setSelectedProject] = useState(null);
+  const currentProject = project || selectedProject;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,20 +77,30 @@ const Chat = () => {
     }
   }, [sessionId]);
 
-  const handleProjectSelect = (project) => {
-    setSelectedProject(project);
+  // Generate new session when project changes (for prop-based usage)
+  useEffect(() => {
+    if (project && sessionId) {
+      const newSessionId = generateSessionId();
+      setSessionId(newSessionId);
+      setMessages([]);
+      console.log('Project changed, generated new session ID:', newSessionId);
+    }
+  }, [project?.name]);
+
+  const handleProjectSelect = (selectedProj) => {
+    setSelectedProject(selectedProj);
     // Clear messages and generate new session when switching projects
     setMessages([]);
     const newSessionId = generateSessionId();
     setSessionId(newSessionId);
-    console.log('Selected project for chat:', project);
+    console.log('Selected project for chat:', selectedProj);
     console.log('Generated new session ID for project:', newSessionId);
   };
 
   const sendMessage = async () => {
     if (!inputMessage.trim()) return;
     
-    if (!selectedProject) {
+    if (!currentProject) {
       alert('Please select a project before chatting.');
       return;
     }
@@ -117,7 +130,7 @@ const Chat = () => {
       const data = await chatApiService.sendMessage({
         message: userMessage,
         userId: userId,
-        projectName: selectedProject.name,
+        projectName: currentProject.name,
         sessionId: sessionId
       });
 
@@ -165,10 +178,13 @@ const Chat = () => {
 
   return (
     <div className="chat-container">
-      <ProjectManager 
-        selectedProject={selectedProject}
-        onProjectSelect={handleProjectSelect}
-      />
+      {/* Only show ProjectManager if no project prop is provided */}
+      {!project && (
+        <ProjectManager 
+          selectedProject={selectedProject}
+          onProjectSelect={handleProjectSelect}
+        />
+      )}
       
       <div className="chat-header">
         <h3>AI Worldbuilding Assistant</h3>
@@ -184,9 +200,9 @@ const Chat = () => {
             </button>
           )}
         </div>
-        {selectedProject ? (
+        {currentProject ? (
           <div>
-            <p>Chatting about: <strong>{selectedProject.name}</strong></p>
+            <p>Chatting about: <strong>{currentProject.name}</strong></p>
             <div className="session-controls">
               <span className="session-info">Session: {sessionId?.substring(8, 16)}...</span>
               <button className="new-conversation-btn" onClick={startNewConversation}>
@@ -235,16 +251,16 @@ const Chat = () => {
           placeholder={
             apiStatus === 'offline' 
               ? "Chat API is offline..." 
-              : selectedProject 
-                ? `Ask about ${selectedProject.name}...` 
+              : currentProject 
+                ? `Ask about ${currentProject.name}...` 
                 : "Select a project first..."
           }
-          disabled={isLoading || !selectedProject || apiStatus === 'offline'}
+          disabled={isLoading || !currentProject || apiStatus === 'offline'}
           rows={3}
         />
         <button 
           onClick={sendMessage} 
-          disabled={isLoading || !inputMessage.trim() || !selectedProject || apiStatus === 'offline'}
+          disabled={isLoading || !inputMessage.trim() || !currentProject || apiStatus === 'offline'}
           className="send-button"
         >
           {isLoading ? 'Sending...' : 'Send'}
