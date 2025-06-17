@@ -202,6 +202,87 @@ def upload_to_qdrant(embedded_chunks, client, collection_name, debug=False):
 
     client.upsert(collection_name=collection_name, points=points)
 
+def get_existing_vectors(client, collection_name, user_id, project_folder=None, debug=False):
+    """
+    Get all existing vectors for a user/project from Qdrant.
+    """
+    filter_conditions = [
+        FieldCondition(key="user_id", match=MatchValue(value=str(user_id)))
+    ]
+    
+    if project_folder:
+        filter_conditions.append(
+            FieldCondition(key="project_folder", match=MatchValue(value=project_folder))
+        )
+    
+    filter = Filter(
+        must=filter_conditions
+    )
+    
+    if debug:
+        print(f"\n🔍 Retrieving existing vectors for user {user_id}")
+        if project_folder:
+            print(f"Project folder: {project_folder}")
+    
+    # Get all points with their metadata
+    points = client.scroll(
+        collection_name=collection_name,
+        filter=filter,
+        with_payload=True,
+        with_vectors=False
+    )[0]
+    
+    if debug:
+        print(f"📊 Found {len(points)} existing vectors")
+    
+    return points
+
+def cleanup_deleted_files(client, collection_name, user_id, project_folder=None, debug=False):
+    """
+    Remove vectors for files that no longer exist in S3.
+    """
+    # Get all files currently in S3
+    prefix = f"users/{user_id}/"
+    if project_folder:
+        prefix += f"{project_folder}/"
+    
+    if debug:
+        print(f"\n🔍 Checking for deleted files in s3://{S3_BUCKET_NAME}/{prefix}")
+    
+    response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
+    existing_s3_files = {obj["Key"] for obj in response.get("Contents", []) if obj["Key"].endswith(".md")}
+    
+    if debug:
+        print(f"📁 Found {len(existing_s3_files)} files in S3")
+    
+    # Get all vectors from Qdrant
+    existing_vectors = get_existing_vectors(client, collection_name, user_id, project_folder, debug)
+    
+    # Find vectors to delete (files that exist in Qdrant but not in S3)
+    vectors_to_delete = []
+    for point in existing_vectors:
+        source = point.payload.get("source")
+        if source and source not in existing_s3_files:
+            vectors_to_delete.append(point.id)
+    
+    if vectors_to_delete:
+        if debug:
+            print(f"\n🗑️ Found {len(vectors_to_delete)} vectors to delete")
+        
+        # Delete vectors in batches
+        for i in range(0, len(vectors_to_delete), 100):
+            batch = vectors_to_delete[i:i+100]
+            client.delete(
+                collection_name=collection_name,
+                points_selector=batch
+            )
+        
+        if debug:
+            print(f"✅ Deleted {len(vectors_to_delete)} vectors")
+    else:
+        if debug:
+            print("\n✨ No vectors to delete")
+
 # === MAIN SCRIPT ===
 def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = False):
     if debug:
@@ -210,8 +291,13 @@ def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = Fa
 
     client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
 
+    # First, clean up any deleted files
     if debug:
-        print("🧠 Filtering out already uploaded chunks...")
+        print("\n🧹 Cleaning up vectors for deleted files...")
+    cleanup_deleted_files(client, COLLECTION_NAME, user_id, project_folder, debug)
+
+    if debug:
+        print("\n🧠 Filtering out already uploaded chunks...")
     new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks, debug)
 
     if not new_chunks:

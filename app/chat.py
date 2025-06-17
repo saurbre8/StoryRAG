@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from qdrant_client import QdrantClient
-from llama_index.core import VectorStoreIndex
+from llama_index.core import VectorStoreIndex, StorageContext, load_index_from_storage
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.core.retrievers import VectorIndexRetriever
@@ -15,18 +15,23 @@ from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.prompts import ChatPromptTemplate
 import re
 from typing import List, Dict, Any
+import logging
+import json
+from datetime import datetime
+from pathlib import Path
+from app.logging_utils import setup_logging, log_interaction
 
 def calculate_metadata_score(question: str, metadata: Dict[str, Any]) -> float:
     """
-    Calculate a score based on metadata relevance to the question.
-    Returns a score between 0 and 1.
+    Calculate a bonus score based on metadata relevance to the question.
+    Returns a score between 0 and 1, where 0 means no penalty.
     """
-    score = 0.0
+    bonus = 0.0
     weights = {
-        'filename_exact': 0.4,  # Higher weight for exact filename matches
-        'filename_partial': 0.2,  # Lower weight for partial matches
-        'source_exact': 0.3,  # Higher weight for exact path matches
-        'source_partial': 0.1   # Lower weight for partial path matches
+        'filename_exact': 0.3,  # Bonus for exact filename matches
+        'filename_partial': 0.15,  # Bonus for partial matches
+        'source_exact': 0.2,  # Bonus for exact path matches
+        'source_partial': 0.1   # Bonus for partial path matches
     }
     
     # Convert question to lowercase for case-insensitive matching
@@ -40,13 +45,13 @@ def calculate_metadata_score(question: str, metadata: Dict[str, Any]) -> float:
         
         # Check for exact filename match
         if filename_base in question_lower:
-            score += weights['filename_exact']
+            bonus += weights['filename_exact']
         # Check for partial matches
         else:
             filename_words = set(re.findall(r'\w+', filename_base))
             common_words = filename_words.intersection(question_words)
             if common_words:
-                score += weights['filename_partial'] * (len(common_words) / len(filename_words))
+                bonus += weights['filename_partial'] * (len(common_words) / len(filename_words))
     
     # Score based on source path relevance
     if 'source' in metadata:
@@ -55,25 +60,42 @@ def calculate_metadata_score(question: str, metadata: Dict[str, Any]) -> float:
         
         # Check for exact path match
         if source_base in question_lower:
-            score += weights['source_exact']
+            bonus += weights['source_exact']
         # Check for partial matches
         else:
             source_words = set(re.findall(r'\w+', source))
             common_words = source_words.intersection(question_words)
             if common_words:
-                score += weights['source_partial'] * (len(common_words) / len(source_words))
+                bonus += weights['source_partial'] * (len(common_words) / len(source_words))
     
-    return min(score, 1.0)  # Cap at 1.0
+    return min(bonus, 1.0)  # Cap at 1.0
 
-def combine_scores(vector_score: float, metadata_score: float, vector_weight: float = 0.6) -> float:
+def combine_scores(vector_score: float, metadata_score: float, vector_weight: float = 0.8) -> float:
     """
-    Combine vector similarity score with metadata score.
-    vector_weight determines how much to weight the vector similarity vs metadata.
+    Combine vector similarity score with metadata bonus.
+    vector_weight determines the base score, metadata adds a bonus.
     """
-    metadata_weight = 1 - vector_weight
-    return (vector_score * vector_weight) + (metadata_score * metadata_weight)
+    # Start with vector score as the base
+    base_score = vector_score
+    
+    # Add metadata bonus (up to 20% boost)
+    max_bonus = 0.2
+    metadata_bonus = metadata_score * max_bonus
+    
+    # Combine scores, ensuring we don't exceed 1.0
+    return min(base_score + metadata_bonus, 1.0)
 
 def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = False) -> str:
+    # Set up logging
+    logger = setup_logging(user_id, project_folder)
+    
+    # Log the query
+    log_interaction(logger, "query_received", {
+        "session_id": session_id,
+        "question": question,
+        "debug_mode": debug
+    })
+
     # 1) Load secrets uvicorn app.main:app --host 0.0.0.0 --port 8000
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     qdrant_host    = os.getenv("QDRANT_HOST")
@@ -82,6 +104,14 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     redis_port     = int(os.getenv("REDIS_PORT", "6379"))
     redis_password = os.getenv("REDIS_PASSWORD2", "")
     collection_name = "splitter"
+
+    # Log system configuration
+    log_interaction(logger, "system_config", {
+        "collection_name": collection_name,
+        "redis_host": redis_host,
+        "redis_port": redis_port,
+        "qdrant_host": qdrant_host
+    })
 
     # 2) Redis-backed memory buffer
     chat_store = RedisChatStore(
@@ -95,6 +125,13 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
 
     # 3) Add user message to memory
     memory.put(ChatMessage(role=MessageRole.USER, content=question))
+
+    # Log memory state
+    log_interaction(logger, "memory_updated", {
+        "session_id": session_id,
+        "message_type": "user",
+        "message_content": question
+    })
 
     # 4) Qdrant VectorStore
     qdrant_client = QdrantClient(url=qdrant_host, api_key=qdrant_api_key)
@@ -115,7 +152,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     index = VectorStoreIndex.from_vector_store(vector_store)
     retriever = VectorIndexRetriever(
         index=index,
-        similarity_top_k=5,  # Increased to get more candidates for scoring
+        similarity_top_k=5,
         filters=MetadataFilters(filters=[
             MetadataFilter(key="user_id", value=str(user_id)),
             MetadataFilter(key="project_folder", value=project_folder),
@@ -123,7 +160,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     )
 
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.5  # Lowered threshold to allow more metadata-influenced matches
+    SCORE_THRESHOLD = 0.5  # Base threshold for vector similarity
 
     if debug:
         print(f"\n🔍 Retrieved {len(candidates)} candidates")
@@ -134,11 +171,21 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
             combined_score = combine_scores(c.score, metadata_score)
             print(f"\nCandidate {i+1}:")
             print(f"Vector Score: {c.score:.3f}")
-            print(f"Metadata Score: {metadata_score:.3f}")
+            print(f"Metadata Bonus: {metadata_score:.3f}")
             print(f"Combined Score: {combined_score:.3f}")
             print(f"Content: {content_preview}")
             print(f"Metadata: {c.node.metadata}")
             print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
+            
+            # Log candidate details
+            log_interaction(logger, "candidate_retrieved", {
+                "candidate_index": i + 1,
+                "vector_score": c.score,
+                "metadata_bonus": metadata_score,
+                "combined_score": combined_score,
+                "content_preview": content_preview,
+                "metadata": c.node.metadata
+            })
 
     # Filter candidates using combined scores
     filtered_candidates = []
@@ -148,6 +195,13 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         if combined_score >= SCORE_THRESHOLD:
             filtered_candidates.append(c)
     
+    # Log filtering results
+    log_interaction(logger, "candidate_filtering", {
+        "total_candidates": len(candidates),
+        "filtered_candidates": len(filtered_candidates),
+        "threshold": SCORE_THRESHOLD
+    })
+
     if debug:
         print(f"\n📈 Filtered to {len(filtered_candidates)} candidates above threshold {SCORE_THRESHOLD}")
         for i, c in enumerate(filtered_candidates):
@@ -155,12 +209,18 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
             combined_score = combine_scores(c.score, metadata_score)
             print(f"Filtered Candidate {i+1}:")
             print(f"Vector Score: {c.score:.3f}")
-            print(f"Metadata Score: {metadata_score:.3f}")
+            print(f"Metadata Bonus: {metadata_score:.3f}")
             print(f"Combined Score: {combined_score:.3f}")
             print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
 
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:
+        log_interaction(logger, "fallback_to_memory", {
+            "session_id": session_id,
+            "reason": "no_candidates_above_threshold",
+            "threshold": SCORE_THRESHOLD
+        })
+
         history_messages = [
             ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content)
             for msg in memory.get()
@@ -176,8 +236,23 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
 
         memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
 
+        # Log memory update for assistant response
+        log_interaction(logger, "memory_updated", {
+            "session_id": session_id,
+            "message_type": "assistant",
+            "message_content": assistant_text
+        })
+
         if debug:
             print_chat_history(memory, session_id)
+
+        # Log the final response
+        log_interaction(logger, "response_generated", {
+            "session_id": session_id,
+            "response": assistant_text,
+            "num_candidates_used": 0,
+            "response_type": "memory_only"
+        })
 
         return assistant_text
 
@@ -232,6 +307,22 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
             print(f"{msg.role}: {msg.content}\n")
 
         print_chat_history(memory, session_id)
+
+        # Log the final response
+        log_interaction(logger, "response_generated", {
+            "session_id": session_id,
+            "response": assistant_text,
+            "num_candidates_used": len(filtered_candidates),
+            "response_type": "rag",
+            "context_used": [c.node.metadata.get('filename', 'N/A') for c in filtered_candidates]
+        })
+
+    # Log memory update for assistant response
+    log_interaction(logger, "memory_updated", {
+        "session_id": session_id,
+        "message_type": "assistant",
+        "message_content": assistant_text
+    })
 
     return assistant_text
 
