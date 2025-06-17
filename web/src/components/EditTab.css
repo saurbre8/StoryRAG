@@ -48,6 +48,36 @@
   color: #333;
 }
 
+.files-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.expand-all-btn,
+.collapse-all-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background-color 0.2s;
+}
+
+.expand-all-btn:hover,
+.collapse-all-btn:hover {
+  background: #0056b3;
+}
+
+.collapse-all-btn {
+  background: #6c757d;
+}
+
+.collapse-all-btn:hover {
+  background: #545b62;
+}
+
 .loading-spinner {
   color: #666;
   font-style: italic;
@@ -62,16 +92,62 @@
   flex: 0 0 300px;
   border-right: 1px solid #ddd;
   overflow-y: auto;
+  max-height: 600px;
 }
 
-.no-files {
+.no-files,
+.loading-files {
   padding: 2rem;
   text-align: center;
   color: #666;
   font-style: italic;
 }
 
-.file-items {
+.file-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-item {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.folder-header {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.folder-header:hover {
+  background-color: #e9ecef;
+}
+
+.folder-toggle {
+  font-size: 1.1rem;
+  margin-right: 0.5rem;
+  width: 20px;
+  text-align: center;
+}
+
+.folder-name {
+  flex: 1;
+  font-weight: 600;
+  color: #495057;
+}
+
+.folder-count {
+  font-size: 0.8rem;
+  color: #6c757d;
+  background: #e9ecef;
+  padding: 0.2rem 0.5rem;
+  border-radius: 10px;
+}
+
+.folder-contents {
   display: flex;
   flex-direction: column;
 }
@@ -101,6 +177,8 @@
 .file-icon {
   font-size: 1.2rem;
   margin-right: 0.75rem;
+  width: 24px;
+  text-align: center;
 }
 
 .file-details {
@@ -131,13 +209,23 @@
   padding: 1rem;
   border-bottom: 1px solid #ddd;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .file-viewer-header h5 {
   margin: 0;
   color: #333;
+}
+
+.file-path-info {
+  font-size: 0.8rem;
+  color: #666;
+  font-family: monospace;
+  background: #f0f0f0;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
 }
 
 .file-content {
@@ -185,10 +273,20 @@
     flex: none;
     border-right: none;
     border-bottom: 1px solid #ddd;
-    max-height: 200px;
+    max-height: 300px;
   }
   
   .file-viewer {
     min-height: 300px;
+  }
+  
+  .files-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .files-actions {
+    justify-content: center;
   }
 } 
