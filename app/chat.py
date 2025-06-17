@@ -13,7 +13,65 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.llms import ChatMessage, MessageRole
 from llama_index.storage.chat_store.redis import RedisChatStore
 from llama_index.core.prompts import ChatPromptTemplate
-load_dotenv()
+import re
+from typing import List, Dict, Any
+
+def calculate_metadata_score(question: str, metadata: Dict[str, Any]) -> float:
+    """
+    Calculate a score based on metadata relevance to the question.
+    Returns a score between 0 and 1.
+    """
+    score = 0.0
+    weights = {
+        'filename_exact': 0.4,  # Higher weight for exact filename matches
+        'filename_partial': 0.2,  # Lower weight for partial matches
+        'source_exact': 0.3,  # Higher weight for exact path matches
+        'source_partial': 0.1   # Lower weight for partial path matches
+    }
+    
+    # Convert question to lowercase for case-insensitive matching
+    question_lower = question.lower()
+    question_words = set(re.findall(r'\w+', question_lower))
+    
+    # Score based on filename relevance
+    if 'filename' in metadata:
+        filename = metadata['filename'].lower()
+        filename_base = filename.replace('.md', '')  # Remove .md extension
+        
+        # Check for exact filename match
+        if filename_base in question_lower:
+            score += weights['filename_exact']
+        # Check for partial matches
+        else:
+            filename_words = set(re.findall(r'\w+', filename_base))
+            common_words = filename_words.intersection(question_words)
+            if common_words:
+                score += weights['filename_partial'] * (len(common_words) / len(filename_words))
+    
+    # Score based on source path relevance
+    if 'source' in metadata:
+        source = metadata['source'].lower()
+        source_base = source.split('/')[-1].replace('.md', '')  # Get filename from path
+        
+        # Check for exact path match
+        if source_base in question_lower:
+            score += weights['source_exact']
+        # Check for partial matches
+        else:
+            source_words = set(re.findall(r'\w+', source))
+            common_words = source_words.intersection(question_words)
+            if common_words:
+                score += weights['source_partial'] * (len(common_words) / len(source_words))
+    
+    return min(score, 1.0)  # Cap at 1.0
+
+def combine_scores(vector_score: float, metadata_score: float, vector_weight: float = 0.6) -> float:
+    """
+    Combine vector similarity score with metadata score.
+    vector_weight determines how much to weight the vector similarity vs metadata.
+    """
+    metadata_weight = 1 - vector_weight
+    return (vector_score * vector_weight) + (metadata_score * metadata_weight)
 
 def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = False) -> str:
     # 1) Load secrets uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -57,7 +115,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     index = VectorStoreIndex.from_vector_store(vector_store)
     retriever = VectorIndexRetriever(
         index=index,
-        similarity_top_k=5,
+        similarity_top_k=5,  # Increased to get more candidates for scoring
         filters=MetadataFilters(filters=[
             MetadataFilter(key="user_id", value=str(user_id)),
             MetadataFilter(key="project_folder", value=project_folder),
@@ -65,26 +123,42 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     )
 
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.5
+    SCORE_THRESHOLD = 0.5  # Lowered threshold to allow more metadata-influenced matches
 
     if debug:
         print(f"\n🔍 Retrieved {len(candidates)} candidates")
         print("\n📊 All retrieved candidates with scores:")
         for i, c in enumerate(candidates):
             content_preview = c.node.get_content()[:100] + "..." if len(c.node.get_content()) > 100 else c.node.get_content()
+            metadata_score = calculate_metadata_score(question, c.node.metadata)
+            combined_score = combine_scores(c.score, metadata_score)
             print(f"\nCandidate {i+1}:")
-            print(f"Score: {c.score:.3f}")
+            print(f"Vector Score: {c.score:.3f}")
+            print(f"Metadata Score: {metadata_score:.3f}")
+            print(f"Combined Score: {combined_score:.3f}")
             print(f"Content: {content_preview}")
             print(f"Metadata: {c.node.metadata}")
+            print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
 
-    # Filter candidates by similarity score
-    filtered_candidates = [c for c in candidates if c.score >= SCORE_THRESHOLD]
+    # Filter candidates using combined scores
+    filtered_candidates = []
+    for c in candidates:
+        metadata_score = calculate_metadata_score(question, c.node.metadata)
+        combined_score = combine_scores(c.score, metadata_score)
+        if combined_score >= SCORE_THRESHOLD:
+            filtered_candidates.append(c)
     
     if debug:
         print(f"\n📈 Filtered to {len(filtered_candidates)} candidates above threshold {SCORE_THRESHOLD}")
         for i, c in enumerate(filtered_candidates):
-            print(f"Filtered Candidate {i+1} score: {c.score:.3f}")
-    
+            metadata_score = calculate_metadata_score(question, c.node.metadata)
+            combined_score = combine_scores(c.score, metadata_score)
+            print(f"Filtered Candidate {i+1}:")
+            print(f"Vector Score: {c.score:.3f}")
+            print(f"Metadata Score: {metadata_score:.3f}")
+            print(f"Combined Score: {combined_score:.3f}")
+            print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
+
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:
         history_messages = [
@@ -118,7 +192,7 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
                     "{context_str}\n\n"
                     "Below is the conversation so far:\n"
                     "{chat_history}\n\n"
-                    "Use that context when answering the user. Be consistent and engaging."
+                    "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
                 )
             ),
             ChatMessage(
