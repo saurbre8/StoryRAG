@@ -9,15 +9,68 @@ import subprocess
 from pathlib import Path
 
 def check_env_file():
-    """Check if .env file exists"""
+    """Check if .env file exists and has required variables"""
+    required_vars = [
+        "QDRANT_API_KEY",
+        "QDRANT_HOST",
+        "OPENAI_API_KEY",
+        "REDIS_HOST",
+        "REDIS_PORT",
+        "REDIS_PASSWORD2",
+        "S3_BUCKET_NAME"
+    ]
+    
     if not os.path.exists('.env'):
         print("⚠️  No .env file found!")
-        print("Create a .env file with:")
-        print("QDRANT_API_KEY=your_key")
-        print("QDRANT_HOST=your_host")
-        print("OPENAI_API_KEY=your_key")
+        print("Create a .env file with the following variables:")
+        for var in required_vars:
+            print(f"{var}=your_value")
         return False
-    print("✅ .env file found")
+    
+    # Check for required variables
+    missing_vars = []
+    for var in required_vars:
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print("⚠️  Missing required environment variables:")
+        for var in missing_vars:
+            print(f"- {var}")
+        return False
+    
+    print("✅ .env file found with all required variables")
+    return True
+
+def check_dependencies():
+    """Check if all required packages are installed"""
+    required_packages = [
+        "fastapi",
+        "uvicorn",
+        "python-dotenv",
+        "qdrant-client",
+        "llama-index",
+        "openai",
+        "boto3",
+        "redis"
+    ]
+    
+    missing_packages = []
+    for package in required_packages:
+        try:
+            __import__(package.replace("-", "_"))
+        except ImportError:
+            missing_packages.append(package)
+    
+    if missing_packages:
+        print("⚠️  Missing required packages:")
+        for package in missing_packages:
+            print(f"- {package}")
+        print("\nInstall missing packages with:")
+        print(f"pip install {' '.join(missing_packages)}")
+        return False
+    
+    print("✅ All required packages are installed")
     return True
 
 def check_main_py():
@@ -81,7 +134,12 @@ def main():
         sys.exit(1)
     
     # Check environment
-    check_env_file()
+    if not check_env_file():
+        sys.exit(1)
+    
+    # Check dependencies
+    if not check_dependencies():
+        sys.exit(1)
     
     # Get user input
     print("\nChoose server mode:")
