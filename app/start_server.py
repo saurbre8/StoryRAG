@@ -47,7 +47,6 @@ def check_dependencies():
     required_packages = [
         "fastapi",
         "uvicorn",
-        "python-dotenv",
         "qdrant-client",
         "llama-index",
         "openai",

@@ -24,7 +24,7 @@ const getApiConfig = () => {
   // You can set these as environment variables in your deployment
   const config = {
     // Default to localhost for development
-    chatApiUrl: process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8000',
+    chatApiUrl: process.env.REACT_APP_CHAT_API_URL || 'https://54.226.223.245:8000',
     
     // Request timeout in milliseconds
     requestTimeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000,

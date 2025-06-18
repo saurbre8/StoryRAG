@@ -20,7 +20,7 @@
  */
 class EmbedService {
   constructor() {
-    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://54.226.223.245:8000';
+    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'https://54.226.223.245:8000';
     this.timeout = 120000; // 2 minutes timeout for embedding (can take longer)
   }
 

@@ -18,7 +18,7 @@
 class ChatApiService {
   constructor() {
     // Use the EC2 instance URL as default
-    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://54.226.223.245:8000';
+    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'https://54.226.223.245:8000';
     this.timeout = 30000; // 30 seconds timeout
   }
 
@@ -169,7 +169,7 @@ class ChatApiService {
    * @returns {string} Current API base URL
    */
   getBaseUrl() {
-    return this.baseUrl || 'http://54.226.223.245:8000';
+    return this.baseUrl || 'https://54.226.223.245:8000';
   }
 }
 
