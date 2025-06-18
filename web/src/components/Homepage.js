@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
-import FileUploader from './FileUploader';
+import embedService from '../services/embedService';
 import './Homepage.css';
 
 const Homepage = ({ onProjectSelect }) => {
@@ -10,6 +10,10 @@ const Homepage = ({ onProjectSelect }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isEmbedding, setIsEmbedding] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [statusMessage, setStatusMessage] = useState('');
   const auth = useAuth();
 
   useEffect(() => {
@@ -38,40 +42,89 @@ const Homepage = ({ onProjectSelect }) => {
   };
 
   const handleCreateProject = async () => {
-    if (!newProjectName.trim() || uploadedFiles.length === 0) return;
+    if (!newProjectName.trim()) {
+      alert('Project name is required');
+      return;
+    }
+
+    // Validate project name (no special characters except hyphens and underscores)
+    const projectNameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!projectNameRegex.test(newProjectName)) {
+      alert('Project name can only contain letters, numbers, hyphens, and underscores');
+      return;
+    }
+
+    // Check if project already exists
+    if (projects.some(p => p.name === newProjectName)) {
+      alert('A project with this name already exists');
+      return;
+    }
     
     try {
+      setIsUploading(true);
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+      
+      setStatusMessage('Creating project...');
       
       // First create the project
       await s3Service.createProject(userId, newProjectName, 'Created from homepage');
       
-      // Then upload files to the project
-      for (const file of uploadedFiles) {
-        await s3Service.uploadFileContentToProject(
-          file.name, 
-          file.content, 
-          userId, 
-          newProjectName
-        );
+      // Then upload files to the project (only if files were uploaded)
+      if (uploadedFiles.length > 0) {
+        setStatusMessage('Uploading files...');
+        
+        for (const file of uploadedFiles) {
+          await s3Service.uploadFileContentToProject(
+            file.name, 
+            file.content, 
+            userId, 
+            newProjectName,
+            file.path || file.name
+          );
+        }
+        
+        // Embed the files for AI chat
+        setIsEmbedding(true);
+        setStatusMessage('Embedding files for AI chat...');
+        
+        const embedResult = await embedService.embedProjectSafely(userId, newProjectName);
+        
+        if (embedResult.success) {
+          setStatusMessage('✅ Project created and files embedded successfully!');
+        } else {
+          setStatusMessage('⚠️ Project created but embedding failed');
+        }
+      } else {
+        setStatusMessage('✅ Project created successfully!');
       }
       
-      // Reload projects and close modal
+      // Reload projects and close modal after a delay
       await loadProjects();
-      setShowCreateModal(false);
-      setNewProjectName('');
-      setUploadedFiles([]);
       
-      // Auto-select the new project
-      const newProject = { name: newProjectName };
-      onProjectSelect(newProject);
+      setTimeout(() => {
+        setShowCreateModal(false);
+        setNewProjectName('');
+        setUploadedFiles([]);
+        setStatusMessage('');
+        
+        // Auto-select the new project
+        const newProject = { name: newProjectName };
+        onProjectSelect(newProject);
+      }, 1500);
+      
     } catch (error) {
       console.error('Failed to create project:', error);
+      alert(`Failed to create project: ${error.message}`);
+      setStatusMessage('');
+    } finally {
+      setIsUploading(false);
+      setIsEmbedding(false);
     }
-  };
-
-  const handleFilesUploaded = (files) => {
-    setUploadedFiles(files);
   };
 
   if (loading) {
@@ -160,11 +213,8 @@ const Homepage = ({ onProjectSelect }) => {
               </div>
               
               <div className="form-group">
-                <label>Upload Files</label>
-                <FileUploader 
-                  onFilesUploaded={handleFilesUploaded}
-                  compact={true}
-                />
+                <label>Upload Files (Optional)</label>
+                <SimpleFileUpload onFilesUploaded={setUploadedFiles} />
               </div>
               
               {uploadedFiles.length > 0 && (
@@ -175,6 +225,12 @@ const Homepage = ({ onProjectSelect }) => {
                       <li key={index}>{file.name}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+              
+              {statusMessage && (
+                <div className={`status-message ${statusMessage.includes('✅') ? 'success' : statusMessage.includes('⚠️') ? 'warning' : 'info'}`}>
+                  {statusMessage}
                 </div>
               )}
             </div>
@@ -189,7 +245,7 @@ const Homepage = ({ onProjectSelect }) => {
               <button 
                 className="create-btn"
                 onClick={handleCreateProject}
-                disabled={!newProjectName.trim() || uploadedFiles.length === 0}
+                disabled={!newProjectName.trim()}
               >
                 Create Project
               </button>
@@ -206,4 +262,158 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString();
 };
 
-export default Homepage; 
+// Simple file upload component without project selection
+const SimpleFileUpload = ({ onFilesUploaded }) => {
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  const processEntry = async (entry, files, path = '') => {
+    if (entry.isFile) {
+      const file = await new Promise((resolve) => entry.file(resolve));
+      if (file.name.endsWith('.md')) {
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: path + file.name,
+          writable: false
+        });
+        files.push(file);
+      }
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const entries = await new Promise((resolve) => reader.readEntries(resolve));
+      for (const childEntry of entries) {
+        await processEntry(childEntry, files, path + entry.name + '/');
+      }
+    }
+  };
+
+  const handleDrop = useCallback(async (e) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    
+    const items = Array.from(e.dataTransfer.items);
+    const files = [];
+    
+    // Process dropped items (files and folders)
+    for (const item of items) {
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry();
+        if (entry) {
+          await processEntry(entry, files);
+        }
+      }
+    }
+    
+    // Filter for markdown files only
+    const markdownFiles = files.filter(file => 
+      file.name.endsWith('.md') || file.type === 'text/markdown'
+    );
+
+    if (markdownFiles.length === 0) {
+      alert('No .md files found. Please upload markdown files.');
+      return;
+    }
+
+    // Read file contents
+    const filesWithContent = await Promise.all(
+      markdownFiles.map(async (file) => {
+        const content = await file.text();
+        return {
+          name: file.name,
+          size: file.size,
+          content: content,
+          lastModified: file.lastModified,
+          path: file.webkitRelativePath || file.name
+        };
+      })
+    );
+
+    onFilesUploaded(filesWithContent);
+  }, [onFilesUploaded]);
+
+  const handleFileInput = useCallback(async (e) => {
+    const files = Array.from(e.target.files);
+    
+    // Filter for markdown files only
+    const markdownFiles = files.filter(file => 
+      file.name.endsWith('.md') || file.type === 'text/markdown'
+    );
+
+    if (markdownFiles.length === 0) {
+      alert('No .md files found. Please select markdown files or folders.');
+      return;
+    }
+
+    // Read file contents
+    const filesWithContent = await Promise.all(
+      markdownFiles.map(async (file) => {
+        const content = await file.text();
+        return {
+          name: file.name,
+          size: file.size,
+          content: content,
+          lastModified: file.lastModified,
+          path: file.webkitRelativePath || file.name
+        };
+      })
+    );
+
+    onFilesUploaded(filesWithContent);
+  }, [onFilesUploaded]);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleClick = () => {
+    document.getElementById('folder-input').click();
+  };
+
+  return (
+    <div 
+      className={`simple-file-upload ${isDragActive ? 'drag-active' : ''}`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onClick={handleClick}
+    >
+      <div className="upload-content">
+        <div className="upload-icon">📁</div>
+        {isDragActive ? (
+          <div>
+            <h4>Drop your files or folders here!</h4>
+            <p>Only .md files will be processed</p>
+          </div>
+        ) : (
+          <div>
+            <h4>Drag & drop files or folders</h4>
+            <p>or <span className="click-text">click to browse</span></p>
+            <p className="file-types">Supports .md files only</p>
+            <div className="upload-options">
+              <div className="option">📄 Individual .md files</div>
+              <div className="option">📂 Folders with .md files</div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Folder input that can also select individual files */}
+      <input
+        id="folder-input"
+        type="file"
+        webkitdirectory=""
+        directory=""
+        onChange={handleFileInput}
+        style={{ display: 'none' }}
+      />
+    </div>
+  );
+};
+
+export default Homepage;
