@@ -46,6 +46,46 @@
 .debug-panel-controls {
   display: flex;
   gap: 4px;
+  align-items: center;
+}
+
+.score-threshold-input-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.score-threshold-label {
+  color: #cccccc;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.score-threshold-input {
+  width: 50px;
+  height: 20px;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 3px;
+  color: #cccccc;
+  font-size: 11px;
+  text-align: center;
+  padding: 2px 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.score-threshold-input:focus {
+  outline: none;
+  border-color: #007acc;
+  box-shadow: 0 0 0 1px rgba(0, 122, 204, 0.2);
+}
+
+.score-threshold-input::-webkit-inner-spin-button,
+.score-threshold-input::-webkit-outer-spin-button {
+  opacity: 1;
+  height: 16px;
 }
 
 .debug-panel-btn {
@@ -80,15 +120,9 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
 }
 
-.debug-controls-section {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #3e3e42;
-  flex-shrink: 0;
-}
+
 
 .debug-output {
   flex: 1;

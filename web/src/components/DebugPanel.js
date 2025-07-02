@@ -49,6 +49,23 @@ const DebugPanel = ({
           <span>Debug Output</span>
         </div>
         <div className="debug-panel-controls">
+          {/* Score Threshold Input */}
+          <div className="score-threshold-input-container">
+            <label htmlFor="score-threshold-input" className="score-threshold-label">
+              🎯 Document Score Threshold:
+            </label>
+            <input
+              id="score-threshold-input"
+              type="number"
+              min="0.0"
+              max="1.0"
+              step="0.05"
+              value={scoreThreshold}
+              onChange={(e) => onScoreThresholdChange?.(parseFloat(e.target.value) || 0.5)}
+              className="score-threshold-input"
+              title="Document score threshold (0.0-1.0)"
+            />
+          </div>
           <button 
             className="debug-panel-btn clear-btn"
             onClick={clearOutput}
@@ -75,15 +92,6 @@ const DebugPanel = ({
       
       {!isCollapsed && (
         <div className="debug-panel-content">
-          {/* Score Threshold Editor */}
-          <div className="debug-controls-section">
-            <ScoreThresholdEditor 
-              scoreThreshold={scoreThreshold}
-              onScoreThresholdChange={onScoreThresholdChange}
-              isInChatPanel={false}
-            />
-          </div>
-          
           {/* Debug Output */}
           <div className="debug-output" ref={outputRef}>
             {output ? (

@@ -10,8 +10,9 @@ const ScoreThresholdEditor = ({ scoreThreshold, onScoreThresholdChange, isInChat
     setLocalThreshold(scoreThreshold || 0.5);
   }, [scoreThreshold]);
 
-  const handleSliderChange = (e) => {
-    setLocalThreshold(parseFloat(e.target.value));
+  const handleInputChange = (e) => {
+    const value = parseFloat(e.target.value) || 0.5;
+    setLocalThreshold(value);
   };
 
   const handleExpand = () => {
@@ -49,26 +50,26 @@ const ScoreThresholdEditor = ({ scoreThreshold, onScoreThresholdChange, isInChat
           onClick={handleExpand}
           title={isExpanded ? "Collapse score threshold" : "Expand score threshold"}
         >
-          <span>🎯</span>
+          <span>Score Threshold 🎯</span>
           <span>Threshold: {localThreshold.toFixed(2)}</span>
           <span>{isExpanded ? '▼' : '▶'}</span>
         </button>
         
         {isExpanded && (
           <div className="threshold-editor-compact">
-            <div className="threshold-slider-container">
-              <label htmlFor="threshold-slider" className="threshold-label">
+            <div className="threshold-input-container">
+              <label htmlFor="threshold-input" className="threshold-label">
                 Minimum Similarity Score: {localThreshold.toFixed(2)}
               </label>
               <input
-                id="threshold-slider"
-                type="range"
+                id="threshold-input"
+                type="number"
                 min="0.0"
                 max="1.0"
                 step="0.05"
                 value={localThreshold}
-                onChange={handleSliderChange}
-                className="threshold-slider"
+                onChange={handleInputChange}
+                className="threshold-input"
               />
               <div className="threshold-description">
                 {getThresholdDescription(localThreshold)}
@@ -106,19 +107,19 @@ const ScoreThresholdEditor = ({ scoreThreshold, onScoreThresholdChange, isInChat
       
       {isExpanded ? (
         <div className="threshold-editor">
-          <div className="threshold-slider-container">
-            <label htmlFor="threshold-slider-full" className="threshold-label">
+          <div className="threshold-input-container">
+            <label htmlFor="threshold-input-full" className="threshold-label">
               Minimum Similarity Score: {localThreshold.toFixed(2)}
             </label>
             <input
-              id="threshold-slider-full"
-              type="range"
+              id="threshold-input-full"
+              type="number"
               min="0.0"
               max="1.0"
               step="0.05"
               value={localThreshold}
-              onChange={handleSliderChange}
-              className="threshold-slider"
+              onChange={handleInputChange}
+              className="threshold-input"
             />
             <div className="threshold-description">
               {getThresholdDescription(localThreshold)}

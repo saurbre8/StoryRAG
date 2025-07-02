@@ -144,9 +144,6 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
             combined_score = combine_scores(c.score, calculate_metadata_score(question, c.node.metadata))
             debug_output += f"Chunk {i+1} | Score: {combined_score:.3f} | Filename: {c.node.metadata.get('filename', 'N/A')}\n"
             debug_output += f"Content Preview: {content_preview}\n\n"
-        context_str = "\n\n".join([node.get_content() for node in candidates if combined_score >= score_threshold])
-        full_prompt = f"System: {system_prompt}\nContext: {context_str}\nUser: {question}"
-        debug_output += f"\n📝 Full Prompt to LLM:\n{full_prompt}\n"
 
     # Filter candidates using combined scores
     filtered_candidates = []
@@ -156,6 +153,15 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
         if combined_score >= score_threshold:
             filtered_candidates.append(c)
     
+    if debug:
+        debug_output += f"\n✅ After filtering with threshold {score_threshold}: {len(filtered_candidates)} candidates remain\n"
+        if filtered_candidates:
+            context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
+            full_prompt = f"System: {system_prompt}\nContext: {context_str}\nUser: {question}"
+            debug_output += f"\n📝 Full Prompt to LLM:\n{full_prompt}\n"
+        else:
+            debug_output += f"\n⚠️ No candidates meet the threshold {score_threshold}, using memory-only approach\n"
+
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:
         # Use custom system prompt if provided, otherwise use default
@@ -198,28 +204,28 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
             "{chat_history}\n\n"
             "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
         )
-    qa_prompt = ChatPromptTemplate(
-        message_templates=[
-            ChatMessage(
-                role=MessageRole.SYSTEM,
-                content=system_prompt
-            ),
-            ChatMessage(
-                role=MessageRole.USER,
-                content="{query_str}"
-            )
-        ]
-    )
 
-    # 9) Query engine with memory
-    query_engine = RetrieverQueryEngine.from_args(
-        retriever=retriever,
-        text_qa_template=qa_prompt,
-        memory=memory
-    )
+    # 9) Use filtered candidates directly instead of query engine
+    # Create context from filtered candidates
+    context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
+    
+    # Create messages with system prompt and context
+    messages = [ChatMessage(role=MessageRole.SYSTEM, content=system_prompt)]
+    
+    # Add chat history
+    for msg in memory.get():
+        messages.append(ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content))
+    
+    # Add current question with context
+    context_message = f"Context: {context_str}\n\nUser question: {question}"
+    messages.append(ChatMessage(role=MessageRole.USER, content=context_message))
 
-    response = query_engine.query(question)
-    assistant_text = getattr(response, "response", getattr(response, "message", response))
+    llm = Settings.llm
+    llm_response = llm.chat(messages=messages)
+
+    assistant_text = getattr(llm_response, "content", None)
+    if not assistant_text:
+        assistant_text = getattr(getattr(llm_response, "message", {}), "content", "")
 
     memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
 
