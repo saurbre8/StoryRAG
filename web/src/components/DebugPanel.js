@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import ScoreThresholdEditor from './ScoreThresholdEditor';
 import './DebugPanel.css';
 
 const DebugPanel = ({ 

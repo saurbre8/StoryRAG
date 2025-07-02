@@ -20,7 +20,6 @@ import ProjectManager from './ProjectManager';
 import chatApiService from '../services/chatApiService';
 import embedService from '../services/embedService';
 import SystemPromptEditor from './SystemPromptEditor';
-import ScoreThresholdEditor from './ScoreThresholdEditor';
 import './Chat.css';
 
 const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold = 0.5, onScoreThresholdChange }) => {
