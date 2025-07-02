@@ -17,8 +17,8 @@
  */
 class ChatApiService {
   constructor() {
-    // Use the EC2 instance URL as default
-    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://54.226.223.245:8000';
+    // Use environment variable for easy switching between local and production
+    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8000';
     this.timeout = 30000; // 30 seconds timeout
   }
 
@@ -29,9 +29,11 @@ class ChatApiService {
    * @param {string} params.userId - User ID
    * @param {string} params.projectName - Selected project name
    * @param {string} params.sessionId - Chat session ID for conversation continuity
+   * @param {boolean} [params.debug] - Enable debug mode (optional)
+   * @param {string} [params.system_prompt] - Custom system prompt (optional)
    * @returns {Promise<Object>} API response
    */
-  async sendMessage({ message, userId, projectName, sessionId }) {
+  async sendMessage({ message, userId, projectName, sessionId, debug = false, system_prompt = null }) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -41,8 +43,14 @@ class ChatApiService {
         user_id: userId,
         project_folder: projectName,
         session_id: sessionId,
-        question: message
+        question: message,
+        debug: debug.toString(),
       });
+
+      // Add system_prompt if provided
+      if (system_prompt) {
+        queryParams.append('system_prompt', system_prompt);
+      }
 
       const url = `${this.baseUrl}/chat?${queryParams}`;
       console.log(`Sending message to: ${url}`);
@@ -75,7 +83,8 @@ class ChatApiService {
       return {
         ...data,
         response: responseText,  // Ensure Chat component gets the content
-        answer: data.answer      // Keep original for debugging
+        answer: data.answer,     // Keep original for debugging
+        debug: data.debug        // Pass debug output to frontend if present
       };
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -169,7 +178,7 @@ class ChatApiService {
    * @returns {string} Current API base URL
    */
   getBaseUrl() {
-    return this.baseUrl || 'http://54.226.223.245:8000';
+    return this.baseUrl || 'http://localhost:8000';
   }
 }
 

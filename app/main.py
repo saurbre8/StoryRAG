@@ -43,13 +43,15 @@ async def chat_route(
     user_id: str = Query(...),
     project_folder: str = Query(...),
     session_id: str = Query(...),
-    question: str = Query(...)
+    question: str = Query(...),
+    debug: bool = Query(False),
+    system_prompt: str = Query(None)
 ):
     try:
         if not user_id or not project_folder or not question or not session_id:
             raise HTTPException(status_code=400, detail="All fields are required")
 
-        answer = run_chat_query(user_id, project_folder, session_id, question)
+        answer = run_chat_query(user_id, project_folder, session_id, question, debug=debug, system_prompt=system_prompt)
         return {"answer": answer}
     except Exception as e:
         logger.error(f"Chat error: {str(e)}")

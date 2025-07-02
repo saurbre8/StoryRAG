@@ -1,8 +1,18 @@
 {
+  "name": "storyrag",
   "homepage": "https://storyrag.zburns.net",
+  "scripts": {
+    "start": "concurrently \"npm run start:api\" \"npm run start:web\"",
+    "start:api": "uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "start:web": "cd web && npm start",
+    "dev": "npm run start"
+  },
   "dependencies": {
     "aws-sdk": "^2.1692.0",
     "oidc-client-ts": "^3.2.1",
     "react-oidc-context": "^3.3.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
   }
 }

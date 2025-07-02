@@ -11,6 +11,7 @@
  * - Auto-scrolling chat messages
  * - Integration with backend chat API service
  * - Retry mechanisms for connection issues
+ * - Debug mode toggle for development and troubleshooting
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -18,9 +19,10 @@ import { useAuth } from 'react-oidc-context';
 import ProjectManager from './ProjectManager';
 import chatApiService from '../services/chatApiService';
 import embedService from '../services/embedService';
+import SystemPromptEditor from './SystemPromptEditor';
 import './Chat.css';
 
-const Chat = ({ project = null }) => {
+const Chat = ({ project = null, onDebugToggle, debugMode = false }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +31,7 @@ const Chat = ({ project = null }) => {
   const [connectionError, setConnectionError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [embeddingStatus, setEmbeddingStatus] = useState({}); // Track per-project embedding status
+  const [systemPrompt, setSystemPrompt] = useState(null); // Custom system prompt
   const messagesEndRef = useRef(null);
   const auth = useAuth();
 
@@ -71,24 +74,24 @@ const Chat = ({ project = null }) => {
     return `session_${timestamp}_${random}`;
   };
 
-  // Initialize session ID on component mount
+  // Initialize session ID on component mount only
   useEffect(() => {
     if (!sessionId) {
       const newSessionId = generateSessionId();
       setSessionId(newSessionId);
-      console.log('Generated new session ID:', newSessionId);
+      console.log('Generated initial session ID:', newSessionId);
     }
-  }, [sessionId]);
+  }, []); // Empty dependency array - only run once on mount
 
   // Generate new session when project changes (for prop-based usage)
   useEffect(() => {
-    if (project && sessionId) {
+    if (project && !sessionId) {
       const newSessionId = generateSessionId();
       setSessionId(newSessionId);
       setMessages([]);
       console.log('Project changed, generated new session ID:', newSessionId);
     }
-  }, [project?.name]);
+  }, [project]); // Only depend on project, not sessionId
 
   const handleProjectSelect = (selectedProj) => {
     setSelectedProject(selectedProj);
@@ -176,38 +179,52 @@ const Chat = ({ project = null }) => {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    console.log('sendMessage called with inputMessage:', inputMessage);
+    
+    if (!inputMessage.trim()) {
+      console.log('sendMessage: empty message, returning');
+      return;
+    }
     
     if (!currentProject) {
+      console.log('sendMessage: no currentProject, alerting');
       alert('Please select a project before chatting.');
       return;
     }
 
     if (apiStatus === 'offline') {
+      console.log('sendMessage: API offline, alerting');
       alert('Chat API is currently offline. Please try again later.');
       return;
     }
 
     if (!sessionId) {
-      console.error('No session ID available');
+      console.log('sendMessage: no sessionId, alerting');
       alert('Session not initialized. Please refresh the page.');
       return;
     }
 
     const userMessage = inputMessage;
+    console.log('sendMessage: setting inputMessage to empty');
     setInputMessage('');
+    console.log('sendMessage: setting isLoading to true');
     setIsLoading(true);
     setConnectionError(null);
 
     // Add user message to chat
-    setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
+    console.log('sendMessage: adding user message to state');
+    setMessages(prev => {
+      const newMessages = [...prev, { type: 'user', content: userMessage }];
+      console.log('Added user message:', userMessage, 'Total messages:', newMessages.length);
+      return newMessages;
+    });
 
     try {
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       
       // Check and embed project if needed BEFORE sending the chat message
       console.log('Checking if project needs embedding before chat...');
-      const embedResult = await checkAndEmbedProject(userId, currentProject.name);
+      await checkAndEmbedProject(userId, currentProject.name);
       
       // Continue with chat regardless of embedding result
       console.log('Sending chat message...');
@@ -215,11 +232,47 @@ const Chat = ({ project = null }) => {
         message: userMessage,
         userId: userId,
         projectName: currentProject.name,
-        sessionId: sessionId
+        sessionId: sessionId,
+        system_prompt: systemPrompt,
+        debug: debugMode, // Pass debug mode to API
       });
 
+      console.log('API Response received:', data);
+      console.log('Response text:', data.response);
+      console.log('Answer field:', data.answer);
+      console.log('Debug output field:', data.debug_output);
+      console.log('Full response object keys:', Object.keys(data));
+
+      // Handle different possible response formats
+      let responseText = data.response || data.answer || data.message || 'No response received';
+      console.log('Final response text to display:', responseText);
+
+      // If debug mode is enabled and there's debug output, separate it from the response
+      if (debugMode && data.debug_output) {
+        // Send debug output to debug panel
+        const debugMessage = `[${new Date().toLocaleTimeString()}] ${data.debug_output}`;
+        onDebugToggle?.(debugMessage);
+        
+        // If the response contains debug output, try to extract just the chat response
+        if (responseText.includes('DEBUG OUTPUT:') || responseText.includes('Debug output:')) {
+          // Try to extract the part before debug output
+          const debugIndex = responseText.indexOf('DEBUG OUTPUT:');
+          const debugIndexAlt = responseText.indexOf('Debug output:');
+          const splitIndex = debugIndex !== -1 ? debugIndex : debugIndexAlt;
+          
+          if (splitIndex !== -1) {
+            responseText = responseText.substring(0, splitIndex).trim();
+            console.log('Extracted chat response (removed debug):', responseText);
+          }
+        }
+      }
+      
       // Add assistant response to chat
-      setMessages(prev => [...prev, { type: 'assistant', content: data.response }]);
+      setMessages(prev => {
+        const newMessages = [...prev, { type: 'assistant', content: responseText }];
+        console.log('Updated messages:', newMessages);
+        return newMessages;
+      });
       
       // Update API status to online if request succeeded
       if (apiStatus !== 'online') {
@@ -252,13 +305,15 @@ const Chat = ({ project = null }) => {
         console.log(`New project ${currentProject.name} - will check embedding on first chat`);
       }
     }
-  }, [currentProject, auth.user]);
+  }, [currentProject, auth.user, embeddingStatus]);
 
   // Add a function to start a new conversation
   const startNewConversation = () => {
     const newSessionId = generateSessionId();
     setSessionId(newSessionId);
     setMessages([]);
+    // Notify parent to clear debug output
+    onDebugToggle?.('clear');
     console.log('Started new conversation with session ID:', newSessionId);
   };
 
@@ -267,10 +322,6 @@ const Chat = ({ project = null }) => {
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  const retryConnection = async () => {
-    await checkApiHealth();
   };
 
   return (
@@ -313,9 +364,22 @@ const Chat = ({ project = null }) => {
             </div>
           </div>
         ) : (
-          <p>Select a project above to start chatting</p>
+          <div>
+            <p>Select a project above to start chatting</p>
+          </div>
         )}
       </div>
+
+      {/* System Prompt Editor - moved outside header for better visibility */}
+      {currentProject && (
+        <div className="system-prompt-section">
+          <SystemPromptEditor 
+            systemPrompt={systemPrompt}
+            onSystemPromptChange={setSystemPrompt}
+            isInChatPanel={!!project} // If project prop is provided, we're in chat panel
+          />
+        </div>
+      )}
 
       {connectionError && (
         <div className="connection-error">
@@ -324,30 +388,40 @@ const Chat = ({ project = null }) => {
       )}
       
       <div className="chat-messages">
-        {messages.map((message, index) => (
-          <div key={index} className={`message ${message.type}`}>
-            {message.type === 'user' && (
-              <div className="message-content user-message">
-                <strong>You:</strong> {message.content}
-              </div>
-            )}
-            {message.type === 'assistant' && (
-              <div className="message-content assistant-message">
-                <strong>Assistant:</strong> {message.content}
-              </div>
-            )}
-            {message.type === 'system' && (
-              <div className="message-content system-message">
-                {message.content}
-              </div>
-            )}
-            {message.type === 'error' && (
-              <div className="message-content error-message">
-                {message.content}
-              </div>
-            )}
+        {console.log('Rendering messages:', messages, 'Length:', messages.length)}
+        {messages.length === 0 ? (
+          <div style={{ padding: '1rem', color: '#858585', textAlign: 'center' }}>
+            No messages yet. Send a message to start chatting!
           </div>
-        ))}
+        ) : (
+          messages.map((message, index) => {
+            console.log('Rendering message:', message, 'at index:', index);
+            return (
+              <div key={index} className={`message ${message.type}`}>
+                {message.type === 'user' && (
+                  <div className="message-content user-message">
+                    <strong>You:</strong> {message.content}
+                  </div>
+                )}
+                {message.type === 'assistant' && (
+                  <div className="message-content assistant-message">
+                    <strong>Assistant:</strong> {message.content}
+                  </div>
+                )}
+                {message.type === 'system' && (
+                  <div className="message-content system-message">
+                    {message.content}
+                  </div>
+                )}
+                {message.type === 'error' && (
+                  <div className="message-content error-message">
+                    {message.content}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
         {isLoading && (
           <div className="message assistant">
             <div className="message-content">
@@ -378,7 +452,10 @@ const Chat = ({ project = null }) => {
           rows="3"
         />
         <button 
-          onClick={sendMessage}
+          onClick={() => {
+            console.log('Send button clicked');
+            sendMessage();
+          }}
           disabled={isLoading || isEmbedding || !inputMessage.trim() || !currentProject || apiStatus === 'offline'}
           className={`send-btn ${(isLoading || isEmbedding) ? 'loading' : ''}`}
         >

@@ -9,6 +9,12 @@
   padding: 0;
   overflow: hidden;
   min-height: 0;
+  height: 100vh; /* Ensure full height */
+}
+
+/* Debug panel height adjustments */
+.debug-panel-visible .vscode-editor {
+  height: calc(100vh - 300px);
 }
 
 .editor-header {
@@ -222,5 +228,9 @@
     right: 0;
     height: 100%;
     z-index: 1000;
+  }
+  
+  .debug-panel-visible .vscode-editor {
+    height: calc(100vh - 200px);
   }
 } 

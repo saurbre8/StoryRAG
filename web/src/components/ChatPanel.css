@@ -4,6 +4,7 @@
   flex-direction: column;
   background: #252526;
   color: #d4d4d4;
+  border-left: 1px solid #3e3e42;
 }
 
 .chat-header {
@@ -14,6 +15,7 @@
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  min-height: 40px; /* Ensure minimum height */
 }
 
 .chat-title {
@@ -23,10 +25,19 @@
   font-weight: 600;
   color: #d4d4d4;
   font-size: 0.9rem;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .chat-icon {
   font-size: 1rem;
+}
+
+.chat-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0; /* Prevent shrinking */
+  min-width: 40px; /* Reduced minimum width since we only have close button */
 }
 
 .close-chat {
@@ -77,25 +88,33 @@
   font-weight: 600;
 }
 
-/* Override chat styles to match VSCode theme */
+/* Chat component styles when used inside ChatPanel */
 .chat-panel .chat-container {
-  background: #252526;
-  border: none;
-  height: 100%;
-}
-
-.chat-panel .chat-header {
   background: transparent;
   border: none;
-  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-panel .chat-container .chat-header {
+  display: none !important; /* Hide the Chat component's header since we have our own */
 }
 
 .chat-panel .chat-messages {
+  flex: 1;
   background: #252526;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-panel .message {
   border-bottom: 1px solid #3e3e42;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  flex-shrink: 0;
 }
 
 .chat-panel .message.user {
@@ -106,26 +125,138 @@
   background: #1e1e1e;
 }
 
-.chat-panel .chat-input-container {
-  background: #2d2d30;
-  border-top: 1px solid #3e3e42;
+.chat-panel .message-content {
+  margin: 0;
+  word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
-.chat-panel .chat-input {
-  background: #3c3c3c;
-  border: 1px solid #565656;
+/* System prompt section in chat panel - make it collapsible */
+.chat-panel .system-prompt-section {
+  background: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  padding: 0.5rem 1rem;
+  flex-shrink: 0;
+  max-height: 120px; /* Limit height */
+  overflow-y: auto;
+}
+
+.chat-panel .system-prompt-section.collapsed {
+  max-height: 32px;
+  overflow: hidden;
+}
+
+.chat-panel .system-prompt-section .system-prompt-toggle {
+  background: transparent;
+  border: none;
+  color: #858585;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.chat-panel .system-prompt-section .system-prompt-toggle:hover {
   color: #d4d4d4;
 }
 
-.chat-panel .chat-input:focus {
+.chat-panel .chat-input {
+  background: #2d2d30;
+  border-top: 1px solid #3e3e42;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  flex-shrink: 0;
+  min-height: 80px; /* Ensure minimum height for input */
+}
+
+.chat-panel .chat-input textarea {
+  background: #3c3c3c;
+  border: 1px solid #565656;
+  color: #d4d4d4;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 120px;
+}
+
+.chat-panel .chat-input textarea:focus {
   border-color: #0e639c;
+  outline: none;
 }
 
-.chat-panel .send-button {
+.chat-panel .send-btn {
   background: #0e639c;
-  border: none;
+  border: 1px solid #0e639c;
+  color: white;
 }
 
-.chat-panel .send-button:hover:not(:disabled) {
+.chat-panel .send-btn:hover:not(:disabled) {
   background: #1177bb;
+}
+
+.chat-panel .send-btn:disabled {
+  background: #3c3c3c;
+  border-color: #565656;
+  color: #858585;
+}
+
+/* Status indicators in chat panel */
+.chat-panel .status-indicators {
+  display: none; /* Hide status indicators in panel mode */
+}
+
+/* Session controls in chat panel */
+.chat-panel .session-controls {
+  display: none; /* Hide session controls in panel mode */
+}
+
+/* Responsive design for chat panel */
+@media (max-width: 1024px) {
+  .chat-panel {
+    width: 350px;
+  }
+  
+  .chat-header {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .chat-info {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .chat-panel .message {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .chat-panel .chat-input {
+    padding: 0.75rem;
+  }
+  
+  .chat-panel .system-prompt-section {
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-panel {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    z-index: 1000;
+  }
+  
+  .chat-header-controls {
+    gap: 0.25rem;
+  }
+  
+  .close-chat {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1rem;
+  }
 } 
