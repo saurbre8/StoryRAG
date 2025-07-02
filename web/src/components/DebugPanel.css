@@ -80,6 +80,14 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding: 0.5rem;
+}
+
+.debug-controls-section {
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #3e3e42;
+  flex-shrink: 0;
 }
 
 .debug-output {

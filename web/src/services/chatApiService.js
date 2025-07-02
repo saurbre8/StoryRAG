@@ -31,9 +31,10 @@ class ChatApiService {
    * @param {string} params.sessionId - Chat session ID for conversation continuity
    * @param {boolean} [params.debug] - Enable debug mode (optional)
    * @param {string} [params.system_prompt] - Custom system prompt (optional)
+   * @param {number} [params.score_threshold] - Minimum similarity score for document retrieval (0.0-1.0) (optional)
    * @returns {Promise<Object>} API response
    */
-  async sendMessage({ message, userId, projectName, sessionId, debug = false, system_prompt = null }) {
+  async sendMessage({ message, userId, projectName, sessionId, debug = false, system_prompt = null, score_threshold = 0.5 }) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -45,6 +46,7 @@ class ChatApiService {
         session_id: sessionId,
         question: message,
         debug: debug.toString(),
+        score_threshold: score_threshold.toString(),
       });
 
       // Add system_prompt if provided
@@ -84,7 +86,7 @@ class ChatApiService {
         ...data,
         response: responseText,  // Ensure Chat component gets the content
         answer: data.answer,     // Keep original for debugging
-        debug: data.debug        // Pass debug output to frontend if present
+        debug_output: data.debug_output  // Pass debug output to frontend if present
       };
     } catch (error) {
       if (error.name === 'AbortError') {

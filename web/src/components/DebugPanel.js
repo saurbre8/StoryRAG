@@ -1,7 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ScoreThresholdEditor from './ScoreThresholdEditor';
 import './DebugPanel.css';
 
-const DebugPanel = ({ debugOutput = '', isVisible = false, onToggle }) => {
+const DebugPanel = ({ 
+  debugOutput = '', 
+  isVisible = false, 
+  onToggle, 
+  scoreThreshold = 0.5, 
+  onScoreThresholdChange 
+}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [output, setOutput] = useState('');
   const outputRef = useRef(null);
@@ -68,6 +75,16 @@ const DebugPanel = ({ debugOutput = '', isVisible = false, onToggle }) => {
       
       {!isCollapsed && (
         <div className="debug-panel-content">
+          {/* Score Threshold Editor */}
+          <div className="debug-controls-section">
+            <ScoreThresholdEditor 
+              scoreThreshold={scoreThreshold}
+              onScoreThresholdChange={onScoreThresholdChange}
+              isInChatPanel={false}
+            />
+          </div>
+          
+          {/* Debug Output */}
           <div className="debug-output" ref={outputRef}>
             {output ? (
               <pre>{output}</pre>

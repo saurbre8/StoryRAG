@@ -137,13 +137,15 @@
   border-bottom: 1px solid #3e3e42;
   padding: 0.5rem 1rem;
   flex-shrink: 0;
-  max-height: 120px; /* Limit height */
+  max-height: 600px; /* Allow for larger system prompt editor */
   overflow-y: auto;
+  transition: max-height 0.3s ease;
 }
 
 .chat-panel .system-prompt-section.collapsed {
   max-height: 32px;
   overflow: hidden;
+  transition: max-height 0.3s ease;
 }
 
 .chat-panel .system-prompt-section .system-prompt-toggle {

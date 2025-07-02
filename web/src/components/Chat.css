@@ -443,7 +443,7 @@
 .system-prompt-section {
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
-  padding: 0;
+  padding: 0.5rem 1rem;
   flex-shrink: 0;
 }
 

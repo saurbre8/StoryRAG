@@ -6,7 +6,7 @@ import ChatPanel from './ChatPanel';
 import s3Service from '../services/s3Service';
 import './VSCodeEditor.css';
 
-const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle }) => {
+const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle, scoreThreshold = 0.5, onScoreThresholdChange }) => {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
@@ -413,6 +413,8 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle 
               onClose={() => setIsChatOpen(false)}
               debugMode={debugMode}
               onDebugToggle={onDebugToggle}
+              scoreThreshold={scoreThreshold}
+              onScoreThresholdChange={onScoreThresholdChange}
             />
           </div>
         )}

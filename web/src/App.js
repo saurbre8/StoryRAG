@@ -10,6 +10,7 @@ function App() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [debugMode, setDebugMode] = useState(false);
   const [debugOutput, setDebugOutput] = useState('');
+  const [scoreThreshold, setScoreThreshold] = useState(0.5);
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
@@ -36,6 +37,10 @@ function App() {
     }
   };
 
+  const handleScoreThresholdChange = (newThreshold) => {
+    setScoreThreshold(newThreshold);
+  };
+
   return (
     <AuthWrapper>
       <div className={`App vscode-app ${debugMode ? 'debug-panel-visible' : ''}`}>
@@ -59,6 +64,8 @@ function App() {
             onBackToHome={handleBackToHome}
             debugMode={debugMode}
             onDebugToggle={handleDebugToggle}
+            scoreThreshold={scoreThreshold}
+            onScoreThresholdChange={handleScoreThresholdChange}
           />
         )}
         
@@ -67,6 +74,8 @@ function App() {
           debugOutput={debugOutput}
           isVisible={debugMode}
           onToggle={handleDebugToggle}
+          scoreThreshold={scoreThreshold}
+          onScoreThresholdChange={handleScoreThresholdChange}
         />
       </div>
     </AuthWrapper>

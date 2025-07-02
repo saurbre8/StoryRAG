@@ -84,7 +84,7 @@ def combine_scores(vector_score: float, metadata_score: float, vector_weight: fl
     # Combine scores, ensuring we don't exceed 1.0
     return min(base_score + metadata_bonus, 1.0)
 
-def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = True, system_prompt: str = None) -> str:
+def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = True, system_prompt: str = None, score_threshold: float = 0.5) -> str:
     # 1) Load secrets uvicorn app.main:app --host 0.0.0.0 --port 8000
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     qdrant_host    = os.getenv("QDRANT_HOST")
@@ -134,17 +134,17 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     )
 
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.5  # Base threshold for vector similarity
+    # Use the passed score threshold instead of hardcoded value
 
     debug_output = ""
     if debug:
-        debug_output += f"\n🔍 Retrieved {len(candidates)} candidates (chunks):\n"
+        debug_output += f"\n🔍 Retrieved {len(candidates)} candidates (chunks) with score threshold: {score_threshold}\n"
         for i, c in enumerate(candidates):
             content_preview = c.node.get_content()[:100] + "..." if len(c.node.get_content()) > 100 else c.node.get_content()
             combined_score = combine_scores(c.score, calculate_metadata_score(question, c.node.metadata))
             debug_output += f"Chunk {i+1} | Score: {combined_score:.3f} | Filename: {c.node.metadata.get('filename', 'N/A')}\n"
             debug_output += f"Content Preview: {content_preview}\n\n"
-        context_str = "\n\n".join([node.get_content() for node in candidates if combined_score >= SCORE_THRESHOLD])
+        context_str = "\n\n".join([node.get_content() for node in candidates if combined_score >= score_threshold])
         full_prompt = f"System: {system_prompt}\nContext: {context_str}\nUser: {question}"
         debug_output += f"\n📝 Full Prompt to LLM:\n{full_prompt}\n"
 
@@ -153,19 +153,32 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     for c in candidates:
         metadata_score = calculate_metadata_score(question, c.node.metadata)
         combined_score = combine_scores(c.score, metadata_score)
-        if combined_score >= SCORE_THRESHOLD:
+        if combined_score >= score_threshold:
             filtered_candidates.append(c)
     
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:
-        history_messages = [
-            ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content)
-            for msg in memory.get()
-        ]
-        history_messages.append(ChatMessage(role=MessageRole.USER, content=question))
+        # Use custom system prompt if provided, otherwise use default
+        if system_prompt is None:
+            system_prompt = (
+                "You are a creative worldbuilding assistant for writers.\n"
+                "Below is the conversation so far:\n"
+                "{chat_history}\n\n"
+                "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
+            )
+        
+        # Create messages with system prompt
+        messages = [ChatMessage(role=MessageRole.SYSTEM, content=system_prompt)]
+        
+        # Add chat history
+        for msg in memory.get():
+            messages.append(ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content))
+        
+        # Add current question
+        messages.append(ChatMessage(role=MessageRole.USER, content=question))
 
         llm = Settings.llm
-        llm_response = llm.chat(messages=history_messages)
+        llm_response = llm.chat(messages=messages)
 
         assistant_text = getattr(llm_response, "content", None)
         if not assistant_text:

@@ -20,9 +20,10 @@ import ProjectManager from './ProjectManager';
 import chatApiService from '../services/chatApiService';
 import embedService from '../services/embedService';
 import SystemPromptEditor from './SystemPromptEditor';
+import ScoreThresholdEditor from './ScoreThresholdEditor';
 import './Chat.css';
 
-const Chat = ({ project = null, onDebugToggle, debugMode = false }) => {
+const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold = 0.5, onScoreThresholdChange }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -235,6 +236,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false }) => {
         sessionId: sessionId,
         system_prompt: systemPrompt,
         debug: debugMode, // Pass debug mode to API
+        score_threshold: scoreThreshold, // Pass score threshold to API
       });
 
       console.log('API Response received:', data);

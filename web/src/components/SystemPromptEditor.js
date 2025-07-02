@@ -62,18 +62,18 @@ const SystemPromptEditor = ({ systemPrompt, onSystemPromptChange, isInChatPanel 
               value={localPrompt}
               onChange={handleTextChange}
               placeholder="Enter your custom system prompt..."
-              rows="4"
+              rows="16"
               style={{
                 width: '100%',
-                padding: '8px',
+                padding: '12px',
                 border: '1px solid #3e3e42',
                 borderRadius: '4px',
                 fontFamily: 'Monaco, Menlo, Ubuntu Mono, monospace',
-                fontSize: '12px',
-                lineHeight: '1.3',
+                fontSize: '13px',
+                lineHeight: '1.4',
                 resize: 'vertical',
-                minHeight: '80px',
-                maxHeight: '120px',
+                minHeight: '320px',
+                maxHeight: '500px',
                 background: '#1e1e1e',
                 color: '#e6e6e6'
               }}
