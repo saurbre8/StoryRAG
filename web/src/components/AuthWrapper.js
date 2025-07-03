@@ -35,17 +35,6 @@ const AuthWrapper = ({ children }) => {
     }
   }, [auth.isAuthenticated]);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Auth state:', {
-      isLoading: auth.isLoading,
-      isAuthenticated: auth.isAuthenticated,
-      error: auth.error,
-      user: auth.user,
-      currentUrl: window.location.href
-    });
-  }, [auth.isLoading, auth.isAuthenticated, auth.error, auth.user]);
-
   const handleSignOut = async () => {
     try {
       console.log('Initiating sign-out...');

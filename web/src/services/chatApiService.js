@@ -55,7 +55,7 @@ class ChatApiService {
       }
 
       const url = `${this.baseUrl}/chat?${queryParams}`;
-      console.log(`Sending message to: ${url}`);
+      //console.log(`Sending message to: ${url}`);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -67,7 +67,7 @@ class ChatApiService {
 
       clearTimeout(timeoutId);
 
-      console.log('Response status:', response.status);
+      //console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -76,7 +76,7 @@ class ChatApiService {
       }
 
       const data = await response.json();
-      console.log('Full API Response:', data);
+      //console.log('Full API Response:', data);
       
       // Your server returns 'answer' field, but Chat component expects 'response'
       // So we'll normalize it here
@@ -108,7 +108,6 @@ class ChatApiService {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const url = `${this.baseUrl}/health`;
-      console.log(`Checking health at: ${url}`);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -119,7 +118,7 @@ class ChatApiService {
       });
 
       clearTimeout(timeoutId);
-      console.log('Health check response:', response.status);
+      //console.log('Health check response:', response.status);
       return response.ok;
     } catch (error) {
       console.error('Health check failed:', error);

@@ -79,7 +79,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
     if (!sessionId) {
       const newSessionId = generateSessionId();
       setSessionId(newSessionId);
-      console.log('Generated initial session ID:', newSessionId);
+      //console.log('Generated initial session ID:', newSessionId);
     }
   }, []); // Empty dependency array - only run once on mount
 
@@ -89,7 +89,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       const newSessionId = generateSessionId();
       setSessionId(newSessionId);
       setMessages([]);
-      console.log('Project changed, generated new session ID:', newSessionId);
+      //console.log('Project changed, generated new session ID:', newSessionId);
     }
   }, [project]); // Only depend on project, not sessionId
 
@@ -108,12 +108,12 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
     const embeddingKey = `${userId}_${projectName}`;
     
     if (embeddingStatus[embeddingKey] === 'completed') {
-      console.log(`Project ${projectName} already embedded in this session`);
+      //console.log(`Project ${projectName} already embedded in this session`);
       return { success: true, wasAlreadyEmbedded: true };
     }
 
     if (embeddingStatus[embeddingKey] === 'in_progress') {
-      console.log(`Project ${projectName} is currently being embedded`);
+      //console.log(`Project ${projectName} is currently being embedded`);
       return { success: false, message: 'Embedding already in progress' };
     }
 
@@ -127,7 +127,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
         content: `🧠 Preparing your project files for chat... This may take a moment.` 
       }]);
 
-      console.log(`Starting embedding for project: ${projectName}`);
+      //console.log(`Starting embedding for project: ${projectName}`);
       const embedResult = await embedService.embedProjectSafely(userId, projectName);
       
       if (embedResult.success) {
@@ -179,43 +179,42 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
   };
 
   const sendMessage = async () => {
-    console.log('sendMessage called with inputMessage:', inputMessage);
+    //console.log('sendMessage called with inputMessage:', inputMessage);
     
     if (!inputMessage.trim()) {
-      console.log('sendMessage: empty message, returning');
+      //console.log('sendMessage: empty message, returning');
       return;
     }
     
     if (!currentProject) {
-      console.log('sendMessage: no currentProject, alerting');
+      //console.log('sendMessage: no currentProject, alerting');
       alert('Please select a project before chatting.');
       return;
     }
 
     if (apiStatus === 'offline') {
-      console.log('sendMessage: API offline, alerting');
+      //console.log('sendMessage: API offline, alerting');
       alert('Chat API is currently offline. Please try again later.');
       return;
     }
 
     if (!sessionId) {
-      console.log('sendMessage: no sessionId, alerting');
+      //console.log('sendMessage: no sessionId, alerting');
       alert('Session not initialized. Please refresh the page.');
       return;
     }
 
     const userMessage = inputMessage;
-    console.log('sendMessage: setting inputMessage to empty');
+    //console.log('sendMessage: setting inputMessage to empty');
     setInputMessage('');
-    console.log('sendMessage: setting isLoading to true');
     setIsLoading(true);
     setConnectionError(null);
 
     // Add user message to chat
-    console.log('sendMessage: adding user message to state');
+    //console.log('sendMessage: adding user message to state');
     setMessages(prev => {
       const newMessages = [...prev, { type: 'user', content: userMessage }];
-      console.log('Added user message:', userMessage, 'Total messages:', newMessages.length);
+      //console.log('Added user message:', userMessage, 'Total messages:', newMessages.length);
       return newMessages;
     });
 
@@ -223,11 +222,9 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       
       // Check and embed project if needed BEFORE sending the chat message
-      console.log('Checking if project needs embedding before chat...');
       await checkAndEmbedProject(userId, currentProject.name);
       
       // Continue with chat regardless of embedding result
-      console.log('Sending chat message...');
       const data = await chatApiService.sendMessage({
         message: userMessage,
         userId: userId,
@@ -238,15 +235,16 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
         score_threshold: scoreThreshold, // Pass score threshold to API
       });
 
+      /* 
       console.log('API Response received:', data);
       console.log('Response text:', data.response);
       console.log('Answer field:', data.answer);
       console.log('Debug output field:', data.debug_output);
       console.log('Full response object keys:', Object.keys(data));
+      */
 
       // Handle different possible response formats
       let responseText = data.response || data.answer || data.message || 'No response received';
-      console.log('Final response text to display:', responseText);
 
       // If debug mode is enabled and there's debug output, separate it from the response
       if (debugMode && data.debug_output) {
@@ -263,7 +261,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
           
           if (splitIndex !== -1) {
             responseText = responseText.substring(0, splitIndex).trim();
-            console.log('Extracted chat response (removed debug):', responseText);
+            //console.log('Extracted chat response (removed debug):', responseText);
           }
         }
       }
@@ -271,7 +269,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       // Add assistant response to chat
       setMessages(prev => {
         const newMessages = [...prev, { type: 'assistant', content: responseText }];
-        console.log('Updated messages:', newMessages);
+        //console.log('Updated messages:', newMessages);
         return newMessages;
       });
       
@@ -301,10 +299,11 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       const embeddingKey = `${userId}_${currentProject.name}`;
       
-      // If we don't have embedding status for this project, it needs to be checked
+      /* If we don't have embedding status for this project, it needs to be checked
       if (!embeddingStatus[embeddingKey]) {
         console.log(`New project ${currentProject.name} - will check embedding on first chat`);
       }
+      */
     }
   }, [currentProject, auth.user, embeddingStatus]);
 
@@ -315,7 +314,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
     setMessages([]);
     // Notify parent to clear debug output
     onDebugToggle?.('clear');
-    console.log('Started new conversation with session ID:', newSessionId);
+    //console.log('Started new conversation with session ID:', newSessionId);
   };
 
   const handleKeyPress = (e) => {
@@ -389,14 +388,12 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       )}
       
       <div className="chat-messages">
-        {console.log('Rendering messages:', messages, 'Length:', messages.length)}
         {messages.length === 0 ? (
           <div style={{ padding: '1rem', color: '#858585', textAlign: 'center' }}>
             No messages yet. Send a message to start chatting!
           </div>
         ) : (
           messages.map((message, index) => {
-            console.log('Rendering message:', message, 'at index:', index);
             return (
               <div key={index} className={`message ${message.type}`}>
                 {message.type === 'user' && (

@@ -55,7 +55,6 @@ class S3Service {
       });
 
       this.s3 = new AWS.S3();
-      console.log('S3 service initialized with Cognito credentials');
       return true;
     } catch (error) {
       console.error('Failed to initialize S3 service:', error);
