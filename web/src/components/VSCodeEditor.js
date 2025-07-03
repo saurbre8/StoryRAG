@@ -246,7 +246,7 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
         }, 500);
       }
 
-      console.log(`Successfully moved ${file.name} to ${newPath}`);
+      //console.log(`Successfully moved ${file.name} to ${newPath}`);
     } catch (error) {
       console.error('Failed to move file:', error);
       throw error;
@@ -275,7 +275,7 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
       // Reload the file list to reflect the deletion
       await loadProjectFiles();
 
-      console.log(`Successfully deleted ${file.name}`);
+      //console.log(`Successfully deleted ${file.name}`);
     } catch (error) {
       console.error('Failed to delete file:', error);
       alert(`Failed to delete file: ${error.message}`);

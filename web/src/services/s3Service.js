@@ -449,7 +449,7 @@ class S3Service {
 
     try {
       await this.s3.deleteObject(deleteParams).promise();
-      console.log('File deleted successfully:', fileKey);
+      //console.log('File deleted successfully:', fileKey);
       return { success: true };
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -473,11 +473,11 @@ class S3Service {
       };
 
       await this.s3.copyObject(copyParams).promise();
-      console.log(`File copied from ${oldKey} to ${newKey}`);
+      //console.log(`File copied from ${oldKey} to ${newKey}`);
 
       // Delete the original file
       await this.deleteFile(oldKey);
-      console.log(`Original file deleted: ${oldKey}`);
+      //console.log(`Original file deleted: ${oldKey}`);
 
       return {
         success: true,

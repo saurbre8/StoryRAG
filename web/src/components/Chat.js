@@ -376,7 +376,7 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
           <SystemPromptEditor 
             systemPrompt={systemPrompt}
             onSystemPromptChange={setSystemPrompt}
-            isInChatPanel={!!project} // If project prop is provided, we're in chat panel
+            isInChatPanel={!!project}
           />
         </div>
       )}
@@ -451,7 +451,6 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
         />
         <button 
           onClick={() => {
-            console.log('Send button clicked');
             sendMessage();
           }}
           disabled={isLoading || isEmbedding || !inputMessage.trim() || !currentProject || apiStatus === 'offline'}

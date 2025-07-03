@@ -164,7 +164,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
       // Calculate new file path
       const newFilePath = targetFolderPath ? `${targetFolderPath}/${fileName}` : fileName;
       
-      console.log(`Moving file ${fileName} from "${currentFolderPath}" to "${targetFolderPath}"`);
+      //console.log(`Moving file ${fileName} from "${currentFolderPath}" to "${targetFolderPath}"`);
       
       // Call the move handler
       await onFileMove(draggedFile, currentPath, newFilePath);
