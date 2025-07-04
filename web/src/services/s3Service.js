@@ -100,7 +100,7 @@ class S3Service {
 
     try {
       const result = await this.s3.upload(uploadParams).promise();
-      console.log('Project created successfully:', projectName);
+      //console.log('Project created successfully:', projectName);
       
       return {
         success: true,
@@ -156,7 +156,7 @@ class S3Service {
             };
           } catch (error) {
             // If no .project file exists, return basic info
-            console.log(`No metadata found for project ${projectName}, using defaults`);
+            //console.log(`No metadata found for project ${projectName}, using defaults`);
             const fileCount = await this.getProjectFileCount(userId, projectName);
             
             return {
@@ -236,7 +236,7 @@ class S3Service {
       }
 
       const result = await upload.promise();
-      console.log('File content uploaded to project successfully:', result.Location);
+      //console.log('File content uploaded to project successfully:', result.Location);
       
       return {
         success: true,
@@ -336,7 +336,7 @@ class S3Service {
       }
 
       const result = await upload.promise();
-      console.log('File uploaded successfully:', result.Location);
+      //console.log('File uploaded successfully:', result.Location);
       
       return {
         success: true,
@@ -372,7 +372,7 @@ class S3Service {
 
     try {
       const result = await this.s3.upload(uploadParams).promise();
-      console.log('File content uploaded successfully:', result.Location);
+      //console.log('File content uploaded successfully:', result.Location);
       
       return {
         success: true,
