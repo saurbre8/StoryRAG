@@ -61,7 +61,7 @@ const CreateTab = ({ onProjectCreated }) => {
         throw new Error('Failed to initialize S3 service');
       }
 
-      console.log('Creating project:', projectName);
+      //console.log('Creating project:', projectName);
       await s3Service.createProject(userId, projectName, projectDescription);
       
       const newProject = { 

@@ -42,7 +42,7 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       
       if (!userId) {
-        console.log('No user ID found, skipping project load');
+        //console.log('No user ID found, skipping project load');
         return;
       }
 
@@ -51,9 +51,9 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
         throw new Error('Failed to initialize S3 service');
       }
 
-      console.log('Loading projects from S3 for user:', userId);
+      //console.log('Loading projects from S3 for user:', userId);
       const userProjects = await s3Service.listUserProjects(userId);
-      console.log('Loaded projects:', userProjects);
+      //console.log('Loaded projects:', userProjects);
       setProjects(userProjects);
 
       // If no project is selected but we have projects, optionally select the first one
@@ -94,7 +94,7 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
       setIsCreating(true);
       const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
       
-      console.log('Creating project:', newProjectName);
+      //console.log('Creating project:', newProjectName);
       await s3Service.createProject(userId, newProjectName, newProjectDescription);
       
       // Reload projects from S3

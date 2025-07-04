@@ -35,12 +35,12 @@ const FileUploader = ({ onFilesUploaded }) => {
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
-    console.log('Selected project:', project);
+    //console.log('Selected project:', project);
   };
 
   const handleProjectCreate = (project) => {
     setSelectedProject(project);
-    console.log('Created and selected project:', project);
+    //console.log('Created and selected project:', project);
   };
 
   const onDrop = useCallback(async (acceptedFiles) => {
@@ -60,7 +60,7 @@ const FileUploader = ({ onFilesUploaded }) => {
       return;
     }
 
-    console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
+    //console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
 
     // Helper function to strip the root folder from the path
     const stripRootFolder = (relativePath) => {
@@ -157,7 +157,7 @@ const FileUploader = ({ onFilesUploaded }) => {
         })
       );
 
-      console.log('Files processed:', filesWithContent);
+      //console.log('Files processed:', filesWithContent);
       
       // Count successful uploads
       const successCount = filesWithContent.filter(f => f.uploadedToS3).length;
@@ -170,7 +170,7 @@ const FileUploader = ({ onFilesUploaded }) => {
         setIsEmbedding(true);
         setStatusMessage(`Embedding ${successCount} files for better search...`);
         
-        console.log(`Starting embedding for project: ${selectedProject.name}`);
+        //console.log(`Starting embedding for project: ${selectedProject.name}`);
         
         const embedResult = await embedService.embedProjectSafely(userId, selectedProject.name);
         
@@ -178,7 +178,7 @@ const FileUploader = ({ onFilesUploaded }) => {
         
         if (embedResult.success) {
           setStatusMessage(`✅ Successfully uploaded and embedded ${successCount} files!`);
-          console.log('Embedding successful:', embedResult);
+          //console.log('Embedding successful:', embedResult);
           
           if (failCount === 0) {
             alert(`Successfully uploaded and embedded ${successCount} files in project "${selectedProject.name}"! Files are ready for chat.`);

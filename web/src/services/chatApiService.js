@@ -144,7 +144,7 @@ class ChatApiService {
   async getApiInfo() {
     try {
       const url = `${this.baseUrl}/info`;
-      console.log(`Getting API info from: ${url}`);
+      //console.log(`Getting API info from: ${url}`);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -155,7 +155,7 @@ class ChatApiService {
 
       if (response.ok) {
         const info = await response.json();
-        console.log('API Info:', info);
+        //console.log('API Info:', info);
         return info;
       }
       return null;
@@ -171,7 +171,7 @@ class ChatApiService {
    */
   setBaseUrl(newUrl) {
     this.baseUrl = newUrl;
-    console.log('API base URL updated to:', newUrl);
+    //console.log('API base URL updated to:', newUrl);
   }
 
   /**

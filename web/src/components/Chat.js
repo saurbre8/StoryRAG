@@ -99,8 +99,8 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
     setMessages([]);
     const newSessionId = generateSessionId();
     setSessionId(newSessionId);
-    console.log('Selected project for chat:', selectedProj);
-    console.log('Generated new session ID for project:', newSessionId);
+    //console.log('Selected project for chat:', selectedProj);
+    //console.log('Generated new session ID for project:', newSessionId);
   };
 
   const checkAndEmbedProject = async (userId, projectName) => {

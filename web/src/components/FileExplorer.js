@@ -156,7 +156,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
       
       // Don't move if dropping in the same folder
       if (currentFolderPath === targetFolderPath) {
-        console.log('File is already in this folder');
+        //console.log('File is already in this folder');
         setDropTarget(null);
         return;
       }
