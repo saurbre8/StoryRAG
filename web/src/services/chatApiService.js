@@ -17,8 +17,8 @@
  */
 class ChatApiService {
   constructor() {
-    // Use the EC2 instance URL as default
-    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://54.226.223.245:8000';
+    // Use environment variable for easy switching between local and production
+    this.baseUrl = process.env.REACT_APP_CHAT_API_URL || 'http://localhost:8000';
     this.timeout = 30000; // 30 seconds timeout
   }
 
@@ -29,9 +29,12 @@ class ChatApiService {
    * @param {string} params.userId - User ID
    * @param {string} params.projectName - Selected project name
    * @param {string} params.sessionId - Chat session ID for conversation continuity
+   * @param {boolean} [params.debug] - Enable debug mode (optional)
+   * @param {string} [params.system_prompt] - Custom system prompt (optional)
+   * @param {number} [params.score_threshold] - Minimum similarity score for document retrieval (0.0-1.0) (optional)
    * @returns {Promise<Object>} API response
    */
-  async sendMessage({ message, userId, projectName, sessionId }) {
+  async sendMessage({ message, userId, projectName, sessionId, debug = false, system_prompt = null, score_threshold = 0.5 }) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -41,11 +44,18 @@ class ChatApiService {
         user_id: userId,
         project_folder: projectName,
         session_id: sessionId,
-        question: message
+        question: message,
+        debug: debug.toString(),
+        score_threshold: score_threshold.toString(),
       });
 
+      // Add system_prompt if provided
+      if (system_prompt) {
+        queryParams.append('system_prompt', system_prompt);
+      }
+
       const url = `${this.baseUrl}/chat?${queryParams}`;
-      console.log(`Sending message to: ${url}`);
+      //console.log(`Sending message to: ${url}`);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -57,7 +67,7 @@ class ChatApiService {
 
       clearTimeout(timeoutId);
 
-      console.log('Response status:', response.status);
+      //console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -66,7 +76,7 @@ class ChatApiService {
       }
 
       const data = await response.json();
-      console.log('Full API Response:', data);
+      //console.log('Full API Response:', data);
       
       // Your server returns 'answer' field, but Chat component expects 'response'
       // So we'll normalize it here
@@ -75,7 +85,8 @@ class ChatApiService {
       return {
         ...data,
         response: responseText,  // Ensure Chat component gets the content
-        answer: data.answer      // Keep original for debugging
+        answer: data.answer,     // Keep original for debugging
+        debug_output: data.debug_output  // Pass debug output to frontend if present
       };
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -97,7 +108,6 @@ class ChatApiService {
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       const url = `${this.baseUrl}/health`;
-      console.log(`Checking health at: ${url}`);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -108,7 +118,7 @@ class ChatApiService {
       });
 
       clearTimeout(timeoutId);
-      console.log('Health check response:', response.status);
+      //console.log('Health check response:', response.status);
       return response.ok;
     } catch (error) {
       console.error('Health check failed:', error);
@@ -134,7 +144,7 @@ class ChatApiService {
   async getApiInfo() {
     try {
       const url = `${this.baseUrl}/info`;
-      console.log(`Getting API info from: ${url}`);
+      //console.log(`Getting API info from: ${url}`);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -145,7 +155,7 @@ class ChatApiService {
 
       if (response.ok) {
         const info = await response.json();
-        console.log('API Info:', info);
+        //console.log('API Info:', info);
         return info;
       }
       return null;
@@ -161,7 +171,7 @@ class ChatApiService {
    */
   setBaseUrl(newUrl) {
     this.baseUrl = newUrl;
-    console.log('API base URL updated to:', newUrl);
+    //console.log('API base URL updated to:', newUrl);
   }
 
   /**
@@ -169,7 +179,7 @@ class ChatApiService {
    * @returns {string} Current API base URL
    */
   getBaseUrl() {
-    return this.baseUrl || 'http://54.226.223.245:8000';
+    return this.baseUrl || 'http://localhost:8000';
   }
 }
 

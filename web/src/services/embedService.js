@@ -43,7 +43,7 @@ class EmbedService {
       });
 
       const url = `${this.baseUrl}/embed?${queryParams}`;
-      console.log(`Starting embedding for project: ${projectFolder}`);
+      //console.log(`Starting embedding for project: ${projectFolder}`);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -62,7 +62,7 @@ class EmbedService {
       }
 
       const data = await response.json();
-      console.log('Embed API Response:', data);
+      //console.log('Embed API Response:', data);
       
       return data;
     } catch (error) {

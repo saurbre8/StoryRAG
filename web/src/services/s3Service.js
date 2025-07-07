@@ -55,7 +55,6 @@ class S3Service {
       });
 
       this.s3 = new AWS.S3();
-      console.log('S3 service initialized with Cognito credentials');
       return true;
     } catch (error) {
       console.error('Failed to initialize S3 service:', error);
@@ -101,7 +100,7 @@ class S3Service {
 
     try {
       const result = await this.s3.upload(uploadParams).promise();
-      console.log('Project created successfully:', projectName);
+      //console.log('Project created successfully:', projectName);
       
       return {
         success: true,
@@ -157,7 +156,7 @@ class S3Service {
             };
           } catch (error) {
             // If no .project file exists, return basic info
-            console.log(`No metadata found for project ${projectName}, using defaults`);
+            //console.log(`No metadata found for project ${projectName}, using defaults`);
             const fileCount = await this.getProjectFileCount(userId, projectName);
             
             return {
@@ -237,7 +236,7 @@ class S3Service {
       }
 
       const result = await upload.promise();
-      console.log('File content uploaded to project successfully:', result.Location);
+      //console.log('File content uploaded to project successfully:', result.Location);
       
       return {
         success: true,
@@ -337,7 +336,7 @@ class S3Service {
       }
 
       const result = await upload.promise();
-      console.log('File uploaded successfully:', result.Location);
+      //console.log('File uploaded successfully:', result.Location);
       
       return {
         success: true,
@@ -373,7 +372,7 @@ class S3Service {
 
     try {
       const result = await this.s3.upload(uploadParams).promise();
-      console.log('File content uploaded successfully:', result.Location);
+      //console.log('File content uploaded successfully:', result.Location);
       
       return {
         success: true,
@@ -450,7 +449,7 @@ class S3Service {
 
     try {
       await this.s3.deleteObject(deleteParams).promise();
-      console.log('File deleted successfully:', fileKey);
+      //console.log('File deleted successfully:', fileKey);
       return { success: true };
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -474,11 +473,11 @@ class S3Service {
       };
 
       await this.s3.copyObject(copyParams).promise();
-      console.log(`File copied from ${oldKey} to ${newKey}`);
+      //console.log(`File copied from ${oldKey} to ${newKey}`);
 
       // Delete the original file
       await this.deleteFile(oldKey);
-      console.log(`Original file deleted: ${oldKey}`);
+      //console.log(`Original file deleted: ${oldKey}`);
 
       return {
         success: true,

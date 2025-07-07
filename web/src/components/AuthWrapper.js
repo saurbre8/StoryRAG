@@ -26,7 +26,6 @@ const AuthWrapper = ({ children }) => {
     if (auth.isAuthenticated) {
       const url = new URL(window.location.href);
       if (url.searchParams.has('code') || url.searchParams.has('state')) {
-        console.log('Cleaning up auth parameters after successful login...');
         url.searchParams.delete('code');
         url.searchParams.delete('state');
         url.searchParams.delete('session_state');
@@ -35,21 +34,8 @@ const AuthWrapper = ({ children }) => {
     }
   }, [auth.isAuthenticated]);
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Auth state:', {
-      isLoading: auth.isLoading,
-      isAuthenticated: auth.isAuthenticated,
-      error: auth.error,
-      user: auth.user,
-      currentUrl: window.location.href
-    });
-  }, [auth.isLoading, auth.isAuthenticated, auth.error, auth.user]);
-
   const handleSignOut = async () => {
-    try {
-      console.log('Initiating sign-out...');
-      
+    try { 
       // First try to remove the user from the OIDC context
       await auth.removeUser();
       
@@ -70,7 +56,6 @@ const AuthWrapper = ({ children }) => {
 
   const handleSignIn = async () => {
     try {
-      console.log('Initiating sign-in...');
       await auth.signinRedirect();
     } catch (error) {
       console.error('Sign-in error:', error);

@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
-import FileUploader from './FileUploader';
+import CreateTab from './CreateTab';
 import './Homepage.css';
 
 const Homepage = ({ onProjectSelect }) => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [showCreateTab, setShowCreateTab] = useState(false);
   const auth = useAuth();
 
   useEffect(() => {
@@ -37,47 +35,38 @@ const Homepage = ({ onProjectSelect }) => {
     }
   };
 
-  const handleCreateProject = async () => {
-    if (!newProjectName.trim() || uploadedFiles.length === 0) return;
+  const handleProjectCreated = (newProject) => {
+    // Reload projects to include the new one
+    loadProjects();
     
-    try {
-      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
-      
-      // First create the project
-      await s3Service.createProject(userId, newProjectName, 'Created from homepage');
-      
-      // Then upload files to the project
-      for (const file of uploadedFiles) {
-        await s3Service.uploadFileContentToProject(
-          file.name, 
-          file.content, 
-          userId, 
-          newProjectName
-        );
-      }
-      
-      // Reload projects and close modal
-      await loadProjects();
-      setShowCreateModal(false);
-      setNewProjectName('');
-      setUploadedFiles([]);
-      
-      // Auto-select the new project
-      const newProject = { name: newProjectName };
-      onProjectSelect(newProject);
-    } catch (error) {
-      console.error('Failed to create project:', error);
-    }
-  };
-
-  const handleFilesUploaded = (files) => {
-    setUploadedFiles(files);
+    // Optionally auto-select the new project
+    // onProjectSelect(newProject);
+    
+    // Close the create tab
+    setShowCreateTab(false);
   };
 
   if (loading) {
     return (
       <div className="homepage">
         <div className="loading">Loading your projects...</div>
+      </div>
+    );
+  }
+
+  if (showCreateTab) {
+    return (
+      <div className="homepage">
+        <div className="homepage-header">
+          <button 
+            className="back-btn"
+            onClick={() => setShowCreateTab(false)}
+          >
+            ← Back to Projects
+          </button>
+          <h1>Create New Project</h1>
+        </div>
+        <CreateTab onProjectCreated={handleProjectCreated} />
       </div>
     );
   }
@@ -95,7 +84,7 @@ const Homepage = ({ onProjectSelect }) => {
             <h2>Your Projects</h2>
             <button 
               className="new-project-btn"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => setShowCreateTab(true)}
             >
               <span>+</span> New Project
             </button>
@@ -108,7 +97,7 @@ const Homepage = ({ onProjectSelect }) => {
                 <p>No projects yet</p>
                 <button 
                   className="create-first-project"
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => setShowCreateTab(true)}
                 >
                   Create your first project
                 </button>
@@ -134,69 +123,6 @@ const Homepage = ({ onProjectSelect }) => {
           </div>
         </div>
       </div>
-
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>Create New Project</h3>
-              <button 
-                className="close-btn"
-                onClick={() => setShowCreateModal(false)}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="modal-content">
-              <div className="form-group">
-                <label>Project Name</label>
-                <input
-                  type="text"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="Enter project name..."
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Upload Files</label>
-                <FileUploader 
-                  onFilesUploaded={handleFilesUploaded}
-                  compact={true}
-                />
-              </div>
-              
-              {uploadedFiles.length > 0 && (
-                <div className="uploaded-files-preview">
-                  <p>{uploadedFiles.length} file(s) ready to upload</p>
-                  <ul>
-                    {uploadedFiles.map((file, index) => (
-                      <li key={index}>{file.name}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-            
-            <div className="modal-footer">
-              <button 
-                className="cancel-btn"
-                onClick={() => setShowCreateModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="create-btn"
-                onClick={handleCreateProject}
-                disabled={!newProjectName.trim() || uploadedFiles.length === 0}
-              >
-                Create Project
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
