@@ -6,7 +6,7 @@ import ChatPanel from './ChatPanel';
 import s3Service from '../services/s3Service';
 import './VSCodeEditor.css';
 
-const VSCodeEditor = ({ project, onBackToHome }) => {
+const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle, scoreThreshold = 0.5, onScoreThresholdChange }) => {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
@@ -246,7 +246,7 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
         }, 500);
       }
 
-      console.log(`Successfully moved ${file.name} to ${newPath}`);
+      //console.log(`Successfully moved ${file.name} to ${newPath}`);
     } catch (error) {
       console.error('Failed to move file:', error);
       throw error;
@@ -275,7 +275,7 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
       // Reload the file list to reflect the deletion
       await loadProjectFiles();
 
-      console.log(`Successfully deleted ${file.name}`);
+      //console.log(`Successfully deleted ${file.name}`);
     } catch (error) {
       console.error('Failed to delete file:', error);
       alert(`Failed to delete file: ${error.message}`);
@@ -411,6 +411,10 @@ const VSCodeEditor = ({ project, onBackToHome }) => {
             <ChatPanel 
               project={project}
               onClose={() => setIsChatOpen(false)}
+              debugMode={debugMode}
+              onDebugToggle={onDebugToggle}
+              scoreThreshold={scoreThreshold}
+              onScoreThresholdChange={onScoreThresholdChange}
             />
           </div>
         )}

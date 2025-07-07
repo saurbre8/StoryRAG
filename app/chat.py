@@ -19,7 +19,6 @@ import logging
 import json
 from datetime import datetime
 from pathlib import Path
-from app.logging_utils import setup_logging, log_interaction
 
 def calculate_metadata_score(question: str, metadata: Dict[str, Any]) -> float:
     """
@@ -85,17 +84,7 @@ def combine_scores(vector_score: float, metadata_score: float, vector_weight: fl
     # Combine scores, ensuring we don't exceed 1.0
     return min(base_score + metadata_bonus, 1.0)
 
-def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = False) -> str:
-    # Set up logging
-    logger = setup_logging(user_id, project_folder)
-    
-    # Log the query
-    log_interaction(logger, "query_received", {
-        "session_id": session_id,
-        "question": question,
-        "debug_mode": debug
-    })
-
+def run_chat_query(user_id: str, project_folder: str, session_id: str, question: str, debug: bool = True, system_prompt: str = None, score_threshold: float = 0.5) -> str:
     # 1) Load secrets uvicorn app.main:app --host 0.0.0.0 --port 8000
     qdrant_api_key = os.getenv("QDRANT_API_KEY")
     qdrant_host    = os.getenv("QDRANT_HOST")
@@ -104,14 +93,6 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     redis_port     = int(os.getenv("REDIS_PORT", "6379"))
     redis_password = os.getenv("REDIS_PASSWORD2", "")
     collection_name = "splitter"
-
-    # Log system configuration
-    log_interaction(logger, "system_config", {
-        "collection_name": collection_name,
-        "redis_host": redis_host,
-        "redis_port": redis_port,
-        "qdrant_host": qdrant_host
-    })
 
     # 2) Redis-backed memory buffer
     chat_store = RedisChatStore(
@@ -125,13 +106,6 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
 
     # 3) Add user message to memory
     memory.put(ChatMessage(role=MessageRole.USER, content=question))
-
-    # Log memory state
-    log_interaction(logger, "memory_updated", {
-        "session_id": session_id,
-        "message_type": "user",
-        "message_content": question
-    })
 
     # 4) Qdrant VectorStore
     qdrant_client = QdrantClient(url=qdrant_host, api_key=qdrant_api_key)
@@ -160,75 +134,57 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     )
 
     candidates = retriever.retrieve(question)
-    SCORE_THRESHOLD = 0.5  # Base threshold for vector similarity
+    # Use the passed score threshold instead of hardcoded value
 
+    debug_output = ""
     if debug:
-        print(f"\n🔍 Retrieved {len(candidates)} candidates")
-        print("\n📊 All retrieved candidates with scores:")
+        debug_output += f"\n🔍 Retrieved {len(candidates)} candidates (chunks) with score threshold: {score_threshold}\n"
         for i, c in enumerate(candidates):
             content_preview = c.node.get_content()[:100] + "..." if len(c.node.get_content()) > 100 else c.node.get_content()
-            metadata_score = calculate_metadata_score(question, c.node.metadata)
-            combined_score = combine_scores(c.score, metadata_score)
-            print(f"\nCandidate {i+1}:")
-            print(f"Vector Score: {c.score:.3f}")
-            print(f"Metadata Bonus: {metadata_score:.3f}")
-            print(f"Combined Score: {combined_score:.3f}")
-            print(f"Content: {content_preview}")
-            print(f"Metadata: {c.node.metadata}")
-            print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
-            
-            # Log candidate details
-            log_interaction(logger, "candidate_retrieved", {
-                "candidate_index": i + 1,
-                "vector_score": c.score,
-                "metadata_bonus": metadata_score,
-                "combined_score": combined_score,
-                "content_preview": content_preview,
-                "metadata": c.node.metadata
-            })
+            combined_score = combine_scores(c.score, calculate_metadata_score(question, c.node.metadata))
+            debug_output += f"Chunk {i+1} | Score: {combined_score:.3f} | Filename: {c.node.metadata.get('filename', 'N/A')}\n"
+            debug_output += f"Content Preview: {content_preview}\n\n"
 
     # Filter candidates using combined scores
     filtered_candidates = []
     for c in candidates:
         metadata_score = calculate_metadata_score(question, c.node.metadata)
         combined_score = combine_scores(c.score, metadata_score)
-        if combined_score >= SCORE_THRESHOLD:
+        if combined_score >= score_threshold:
             filtered_candidates.append(c)
     
-    # Log filtering results
-    log_interaction(logger, "candidate_filtering", {
-        "total_candidates": len(candidates),
-        "filtered_candidates": len(filtered_candidates),
-        "threshold": SCORE_THRESHOLD
-    })
-
     if debug:
-        print(f"\n📈 Filtered to {len(filtered_candidates)} candidates above threshold {SCORE_THRESHOLD}")
-        for i, c in enumerate(filtered_candidates):
-            metadata_score = calculate_metadata_score(question, c.node.metadata)
-            combined_score = combine_scores(c.score, metadata_score)
-            print(f"Filtered Candidate {i+1}:")
-            print(f"Vector Score: {c.score:.3f}")
-            print(f"Metadata Bonus: {metadata_score:.3f}")
-            print(f"Combined Score: {combined_score:.3f}")
-            print(f"Filename: {c.node.metadata.get('filename', 'N/A')}")
+        debug_output += f"\n✅ After filtering with threshold {score_threshold}: {len(filtered_candidates)} candidates remain\n"
+        if filtered_candidates:
+            context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
+            full_prompt = f"System: {system_prompt}\nContext: {context_str}\nUser: {question}"
+            debug_output += f"\n📝 Full Prompt to LLM:\n{full_prompt}\n"
+        else:
+            debug_output += f"\n⚠️ No candidates meet the threshold {score_threshold}, using memory-only approach\n"
 
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:
-        log_interaction(logger, "fallback_to_memory", {
-            "session_id": session_id,
-            "reason": "no_candidates_above_threshold",
-            "threshold": SCORE_THRESHOLD
-        })
-
-        history_messages = [
-            ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content)
-            for msg in memory.get()
-        ]
-        history_messages.append(ChatMessage(role=MessageRole.USER, content=question))
+        # Use custom system prompt if provided, otherwise use default
+        if system_prompt is None:
+            system_prompt = (
+                "You are a creative worldbuilding assistant for writers.\n"
+                "Below is the conversation so far:\n"
+                "{chat_history}\n\n"
+                "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
+            )
+        
+        # Create messages with system prompt
+        messages = [ChatMessage(role=MessageRole.SYSTEM, content=system_prompt)]
+        
+        # Add chat history
+        for msg in memory.get():
+            messages.append(ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content))
+        
+        # Add current question
+        messages.append(ChatMessage(role=MessageRole.USER, content=question))
 
         llm = Settings.llm
-        llm_response = llm.chat(messages=history_messages)
+        llm_response = llm.chat(messages=messages)
 
         assistant_text = getattr(llm_response, "content", None)
         if not assistant_text:
@@ -236,95 +192,44 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
 
         memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
 
-        # Log memory update for assistant response
-        log_interaction(logger, "memory_updated", {
-            "session_id": session_id,
-            "message_type": "assistant",
-            "message_content": assistant_text
-        })
-
-        if debug:
-            print_chat_history(memory, session_id)
-
-        # Log the final response
-        log_interaction(logger, "response_generated", {
-            "session_id": session_id,
-            "response": assistant_text,
-            "num_candidates_used": 0,
-            "response_type": "memory_only"
-        })
-
-        return assistant_text
+        return assistant_text, debug_output
 
     # 8) RAG prompt setup
-    qa_prompt = ChatPromptTemplate(
-        message_templates=[
-            ChatMessage(
-                role=MessageRole.SYSTEM,
-                content=(
-                    "You are a creative worldbuilding assistant for writers.\n"
-                    "Here is some relevant context to help you answer:\n"
-                    "{context_str}\n\n"
-                    "Below is the conversation so far:\n"
-                    "{chat_history}\n\n"
-                    "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
-                )
-            ),
-            ChatMessage(
-                role=MessageRole.USER,
-                content="{query_str}"
-            )
-        ]
-    )
+    if system_prompt is None:
+        system_prompt = (
+            "You are a creative worldbuilding assistant for writers.\n"
+            "Here is some relevant context to help you answer:\n"
+            "{context_str}\n\n"
+            "Below is the conversation so far:\n"
+            "{chat_history}\n\n"
+            "Use that context when answering the user. Be consistent and engaging. Keep to concise answers unless asked for longer text."
+        )
 
-    # 9) Query engine with memory
-    query_engine = RetrieverQueryEngine.from_args(
-        retriever=retriever,
-        text_qa_template=qa_prompt,
-        memory=memory
-    )
+    # 9) Use filtered candidates directly instead of query engine
+    # Create context from filtered candidates
+    context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
+    
+    # Create messages with system prompt and context
+    messages = [ChatMessage(role=MessageRole.SYSTEM, content=system_prompt)]
+    
+    # Add chat history
+    for msg in memory.get():
+        messages.append(ChatMessage(role=MessageRole(msg.role.lower()), content=msg.content))
+    
+    # Add current question with context
+    context_message = f"Context: {context_str}\n\nUser question: {question}"
+    messages.append(ChatMessage(role=MessageRole.USER, content=context_message))
 
-    response = query_engine.query(question)
-    assistant_text = getattr(response, "response", getattr(response, "message", response))
+    llm = Settings.llm
+    llm_response = llm.chat(messages=messages)
+
+    assistant_text = getattr(llm_response, "content", None)
+    if not assistant_text:
+        assistant_text = getattr(getattr(llm_response, "message", {}), "content", "")
 
     memory.put(ChatMessage(role=MessageRole.ASSISTANT, content=assistant_text))
 
-    if debug:
-        history_list = memory.get()
-        context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
-        chat_history_text = "\n".join(
-            f"{getattr(msg.role, 'value', str(msg.role)).upper()}: {msg.content}"
-            for msg in history_list
-        )
-        assembled_prompt = qa_prompt.format_messages(
-            context_str=context_str,
-            query_str=question,
-            chat_history=chat_history_text
-        )
-
-        print("\n🚨 Assembled prompt before LLM call:")
-        for msg in assembled_prompt:
-            print(f"{msg.role}: {msg.content}\n")
-
-        print_chat_history(memory, session_id)
-
-        # Log the final response
-        log_interaction(logger, "response_generated", {
-            "session_id": session_id,
-            "response": assistant_text,
-            "num_candidates_used": len(filtered_candidates),
-            "response_type": "rag",
-            "context_used": [c.node.metadata.get('filename', 'N/A') for c in filtered_candidates]
-        })
-
-    # Log memory update for assistant response
-    log_interaction(logger, "memory_updated", {
-        "session_id": session_id,
-        "message_type": "assistant",
-        "message_content": assistant_text
-    })
-
-    return assistant_text
+    return assistant_text, debug_output
 
 
 def print_chat_history(memory: ChatMemoryBuffer, session_id: str):

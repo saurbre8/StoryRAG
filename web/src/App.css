@@ -33,6 +33,26 @@ html, body {
   overflow: hidden;
 }
 
+/* Debug panel padding adjustments */
+.vscode-app.debug-panel-visible {
+  padding-bottom: 300px;
+}
+
+.vscode-app.debug-panel-visible .vscode-editor {
+  height: calc(100vh - 300px);
+}
+
+/* Responsive debug panel adjustments */
+@media (max-width: 768px) {
+  .vscode-app.debug-panel-visible {
+    padding-bottom: 200px;
+  }
+  
+  .vscode-app.debug-panel-visible .vscode-editor {
+    height: calc(100vh - 200px);
+  }
+}
+
 /* Remove old styles when in VSCode mode */
 .vscode-app .App-header,
 .vscode-app .App-main,
@@ -169,4 +189,46 @@ html, body {
 .tab-navigation button:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* Debug Toggle Container */
+.debug-toggle-container {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 2000;
+}
+
+.debug-toggle-btn {
+  background: #3c3c3c;
+  border: 1px solid #565656;
+  color: #d4d4d4;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.debug-toggle-btn:hover {
+  background: #464647;
+  border-color: #5a5a5a;
+}
+
+.debug-toggle-btn.active {
+  background: #007acc;
+  border-color: #007acc;
+  color: white;
+}
+
+/* Debug panel visibility adjustments */
+.debug-panel-visible .vscode-editor {
+  height: calc(100vh - 300px);
+}
+
+.debug-panel-visible .homepage {
+  height: calc(100vh - 300px);
+  overflow-y: auto;
 } 

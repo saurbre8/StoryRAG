@@ -156,7 +156,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
       
       // Don't move if dropping in the same folder
       if (currentFolderPath === targetFolderPath) {
-        console.log('File is already in this folder');
+        //console.log('File is already in this folder');
         setDropTarget(null);
         return;
       }
@@ -164,7 +164,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
       // Calculate new file path
       const newFilePath = targetFolderPath ? `${targetFolderPath}/${fileName}` : fileName;
       
-      console.log(`Moving file ${fileName} from "${currentFolderPath}" to "${targetFolderPath}"`);
+      //console.log(`Moving file ${fileName} from "${currentFolderPath}" to "${targetFolderPath}"`);
       
       // Call the move handler
       await onFileMove(draggedFile, currentPath, newFilePath);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from 'react-oidc-context';
 import s3Service from '../services/s3Service';
 import embedService from '../services/embedService';
+import CreateTab from './CreateTab';
 import './Homepage.css';
 
 const Homepage = ({ onProjectSelect }) => {
@@ -14,6 +15,7 @@ const Homepage = ({ onProjectSelect }) => {
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [statusMessage, setStatusMessage] = useState('');
+  const [showCreateTab, setShowCreateTab] = useState(false);
   const auth = useAuth();
 
   useEffect(() => {
@@ -125,12 +127,40 @@ const Homepage = ({ onProjectSelect }) => {
       setIsUploading(false);
       setIsEmbedding(false);
     }
+
+  const handleProjectCreated = (newProject) => {
+    // Reload projects to include the new one
+    loadProjects();
+    
+    // Optionally auto-select the new project
+    // onProjectSelect(newProject);
+    
+    // Close the create tab
+    setShowCreateTab(false);
+
   };
 
   if (loading) {
     return (
       <div className="homepage">
         <div className="loading">Loading your projects...</div>
+      </div>
+    );
+  }
+
+  if (showCreateTab) {
+    return (
+      <div className="homepage">
+        <div className="homepage-header">
+          <button 
+            className="back-btn"
+            onClick={() => setShowCreateTab(false)}
+          >
+            ← Back to Projects
+          </button>
+          <h1>Create New Project</h1>
+        </div>
+        <CreateTab onProjectCreated={handleProjectCreated} />
       </div>
     );
   }
@@ -148,7 +178,7 @@ const Homepage = ({ onProjectSelect }) => {
             <h2>Your Projects</h2>
             <button 
               className="new-project-btn"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => setShowCreateTab(true)}
             >
               <span>+</span> New Project
             </button>
@@ -161,7 +191,7 @@ const Homepage = ({ onProjectSelect }) => {
                 <p>No projects yet</p>
                 <button 
                   className="create-first-project"
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => setShowCreateTab(true)}
                 >
                   Create your first project
                 </button>
