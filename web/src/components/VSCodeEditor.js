@@ -14,11 +14,27 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
   const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error', 'unsaved'
   const [saveTimeout, setSaveTimeout] = useState(null);
+  const [projectSettings, setProjectSettings] = useState({
+    systemPrompt: null,
+    scoreThreshold: 0.5
+  });
   const auth = useAuth();
 
   useEffect(() => {
     loadProjectFiles();
+    loadProjectSettings();
   }, [project]);
+
+  // Add this new useEffect to watch for scoreThreshold prop changes from DebugPanel
+  useEffect(() => {
+    // Only save if the prop value differs from our local project settings
+    // and we have project settings loaded (to avoid saving on initial load)
+    if (projectSettings.scoreThreshold !== undefined && 
+        scoreThreshold !== projectSettings.scoreThreshold) {
+      console.log(`ScoreThreshold prop changed from ${projectSettings.scoreThreshold} to ${scoreThreshold}, saving to project settings`);
+      saveProjectSettings({ scoreThreshold });
+    }
+  }, [scoreThreshold]); // Watch for changes to the scoreThreshold prop
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -324,6 +340,62 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
     }
   };
 
+  const loadProjectSettings = async () => {
+    if (!project || !auth.user) return;
+    
+    try {
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      const settings = await s3Service.loadProjectSettings(userId, project.name);
+      setProjectSettings(settings);
+      
+      // Update parent component with loaded threshold
+      onScoreThresholdChange(settings.scoreThreshold);
+    } catch (error) {
+      console.error('Failed to load project settings:', error);
+      // Use defaults on error
+      setProjectSettings({
+        systemPrompt: null,
+        scoreThreshold: 0.5
+      });
+    }
+  };
+
+  const saveProjectSettings = async (newSettings) => {
+    if (!project || !auth.user) return;
+    
+    try {
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      const updatedSettings = { ...projectSettings, ...newSettings };
+      await s3Service.saveProjectSettings(userId, project.name, updatedSettings);
+      setProjectSettings(updatedSettings);
+    } catch (error) {
+      console.error('Failed to save project settings:', error);
+      // You could show a toast notification here
+    }
+  };
+
+  // Handlers for settings changes
+  const handleSystemPromptChange = (newPrompt) => {
+    saveProjectSettings({ systemPrompt: newPrompt });
+  };
+
+  const handleScoreThresholdChange = (newThreshold) => {
+    saveProjectSettings({ scoreThreshold: newThreshold });
+    onScoreThresholdChange(newThreshold); // Also update parent
+  };
+
   return (
     <div className="vscode-editor">
       {/* Top Bar */}
@@ -413,8 +485,10 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
               onClose={() => setIsChatOpen(false)}
               debugMode={debugMode}
               onDebugToggle={onDebugToggle}
-              scoreThreshold={scoreThreshold}
-              onScoreThresholdChange={onScoreThresholdChange}
+              scoreThreshold={projectSettings.scoreThreshold}
+              onScoreThresholdChange={handleScoreThresholdChange}
+              systemPrompt={projectSettings.systemPrompt}
+              onSystemPromptChange={handleSystemPromptChange}
             />
           </div>
         )}

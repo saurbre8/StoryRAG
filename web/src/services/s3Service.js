@@ -83,7 +83,14 @@ class S3Service {
       name: projectName,
       description: description,
       createdAt: new Date().toISOString(),
-      userId: userId
+      userId: userId,
+      updatedAt: new Date().toISOString(),
+      settings: {
+        systemPrompt: null,
+        scoreThreshold: 0.5,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
     };
 
     const uploadParams = {
@@ -487,6 +494,114 @@ class S3Service {
     } catch (error) {
       console.error('Error moving file:', error);
       throw new Error(`Move failed: ${error.message}`);
+    }
+  }
+
+  // Save project settings to .project file
+  async saveProjectSettings(userId, projectName, settings) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const projectKey = `${this.getProjectPrefix(userId, projectName)}.project`;
+
+    try {
+      // First, load the existing .project file
+      let existingProject = {};
+      try {
+        const result = await this.downloadFile(projectKey);
+        existingProject = JSON.parse(result.content);
+      } catch (error) {
+        // If .project file doesn't exist, we'll create it
+        console.log('No existing .project file found, creating new one');
+      }
+
+      // Merge settings into the project file
+      const updatedProject = {
+        ...existingProject,
+        settings: {
+          ...existingProject.settings,
+          ...settings,
+          updatedAt: new Date().toISOString()
+        },
+        // Ensure we don't lose the original project metadata
+        updatedAt: new Date().toISOString()
+      };
+
+      const uploadParams = {
+        Bucket: this.bucketName,
+        Key: projectKey,
+        Body: JSON.stringify(updatedProject, null, 2),
+        ContentType: 'application/json'
+      };
+
+      await this.s3.upload(uploadParams).promise();
+      return updatedProject.settings;
+    } catch (error) {
+      console.error('Error saving project settings:', error);
+      throw new Error(`Failed to save settings: ${error.message}`);
+    }
+  }
+
+  // Load project settings from .project file
+  async loadProjectSettings(userId, projectName) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const projectKey = `${this.getProjectPrefix(userId, projectName)}.project`;
+
+    try {
+      const result = await this.downloadFile(projectKey);
+      const projectData = JSON.parse(result.content);
+      
+      // Return settings if they exist, otherwise return defaults
+      const settings = projectData.settings || {};
+      
+      // Ensure we have all required default values
+      return {
+        systemPrompt: settings.systemPrompt || null,
+        scoreThreshold: settings.scoreThreshold !== undefined ? settings.scoreThreshold : 0.5,
+        createdAt: settings.createdAt || new Date().toISOString(),
+        updatedAt: settings.updatedAt || new Date().toISOString()
+      };
+    } catch (error) {
+      // If .project file doesn't exist, create it with defaults
+      if (error.message.includes('NoSuchKey') || error.message.includes('does not exist')) {
+        const defaultSettings = {
+          systemPrompt: null,
+          scoreThreshold: 0.5,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        try {
+          // Create the .project file with defaults
+          const defaultProject = {
+            name: projectName,
+            description: '',
+            createdAt: new Date().toISOString(),
+            userId: userId,
+            settings: defaultSettings
+          };
+
+          const uploadParams = {
+            Bucket: this.bucketName,
+            Key: projectKey,
+            Body: JSON.stringify(defaultProject, null, 2),
+            ContentType: 'application/json'
+          };
+
+          await this.s3.upload(uploadParams).promise();
+          return defaultSettings;
+        } catch (createError) {
+          console.error('Error creating default .project file:', createError);
+          // If we can't create the file, still return defaults
+          return defaultSettings;
+        }
+      }
+      // For other errors, rethrow
+      throw error;
     }
   }
 }

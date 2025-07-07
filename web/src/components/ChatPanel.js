@@ -2,7 +2,16 @@ import React from 'react';
 import Chat from './Chat';
 import './ChatPanel.css';
 
-const ChatPanel = ({ project, onClose, debugMode = false, onDebugToggle, scoreThreshold = 0.5, onScoreThresholdChange }) => {
+const ChatPanel = ({ 
+  project, 
+  onClose, 
+  debugMode = false, 
+  onDebugToggle, 
+  scoreThreshold = 0.5, 
+  onScoreThresholdChange,
+  systemPrompt = null,
+  onSystemPromptChange
+  }) => {
   return (
     <div className="chat-panel">
       <div className="chat-header">
@@ -27,6 +36,8 @@ const ChatPanel = ({ project, onClose, debugMode = false, onDebugToggle, scoreTh
           onDebugToggle={onDebugToggle}
           scoreThreshold={scoreThreshold}
           onScoreThresholdChange={onScoreThresholdChange}
+          systemPrompt={systemPrompt}
+          onSystemPromptChange={onSystemPromptChange}
         />
       </div>
     </div>

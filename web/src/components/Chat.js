@@ -22,22 +22,33 @@ import embedService from '../services/embedService';
 import SystemPromptEditor from './SystemPromptEditor';
 import './Chat.css';
 
-const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold = 0.5, onScoreThresholdChange }) => {
+const Chat = ({ 
+  project = null, 
+  onDebugToggle, 
+  debugMode = false, 
+  scoreThreshold = 0.5,
+  onScoreThresholdChange,
+  systemPrompt: initialSystemPrompt = null,
+  onSystemPromptChange
+  }) => {
+  // Remove redundant local systemPrompt state - use prop directly
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isEmbedding, setIsEmbedding] = useState(false);
-  const [apiStatus, setApiStatus] = useState('unknown'); // 'online', 'offline', 'unknown'
+  const [apiStatus, setApiStatus] = useState('unknown');
   const [connectionError, setConnectionError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
-  const [embeddingStatus, setEmbeddingStatus] = useState({}); // Track per-project embedding status
-  const [systemPrompt, setSystemPrompt] = useState(null); // Custom system prompt
+  const [embeddingStatus, setEmbeddingStatus] = useState({});
   const messagesEndRef = useRef(null);
   const auth = useAuth();
 
   // For standalone usage (when no project prop is provided)
   const [selectedProject, setSelectedProject] = useState(null);
   const currentProject = project || selectedProject;
+
+  // Use the prop value directly
+  const systemPrompt = initialSystemPrompt || '';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -244,27 +255,22 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
       */
 
       // Handle different possible response formats
-      let responseText = data.response || data.answer || data.message || 'No response received';
-
-      // If debug mode is enabled and there's debug output, separate it from the response
-      if (debugMode && data.debug_output) {
-        // Send debug output to debug panel
-        const debugMessage = `[${new Date().toLocaleTimeString()}] ${data.debug_output}`;
-        onDebugToggle?.(debugMessage);
-        
-        // If the response contains debug output, try to extract just the chat response
-        if (responseText.includes('DEBUG OUTPUT:') || responseText.includes('Debug output:')) {
-          // Try to extract the part before debug output
-          const debugIndex = responseText.indexOf('DEBUG OUTPUT:');
-          const debugIndexAlt = responseText.indexOf('Debug output:');
-          const splitIndex = debugIndex !== -1 ? debugIndex : debugIndexAlt;
-          
-          if (splitIndex !== -1) {
-            responseText = responseText.substring(0, splitIndex).trim();
-            //console.log('Extracted chat response (removed debug):', responseText);
-          }
-        }
+      let responseText = '';
+      if (data.response) {
+        responseText = data.response;
+      } else if (data.answer) {
+        responseText = data.answer;
+      } else if (typeof data === 'string') {
+        responseText = data;
+      } else {
+        responseText = 'Received response but could not parse content.';
       }
+
+      /* 
+      console.log('Final response text to display:', responseText);
+      console.log('Response text type:', typeof responseText);
+      console.log('Response text length:', responseText.length);
+      */
       
       // Add assistant response to chat
       setMessages(prev => {
@@ -370,12 +376,12 @@ const Chat = ({ project = null, onDebugToggle, debugMode = false, scoreThreshold
         )}
       </div>
 
-      {/* System Prompt Editor - moved outside header for better visibility */}
+      {/* System Prompt Editor - now uses prop directly */}
       {currentProject && (
         <div className="system-prompt-section">
           <SystemPromptEditor 
             systemPrompt={systemPrompt}
-            onSystemPromptChange={setSystemPrompt}
+            onSystemPromptChange={onSystemPromptChange}
             isInChatPanel={!!project}
           />
         </div>
