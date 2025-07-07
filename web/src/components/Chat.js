@@ -246,13 +246,11 @@ const Chat = ({
         score_threshold: scoreThreshold, // Pass score threshold to API
       });
 
-      /* 
       console.log('API Response received:', data);
       console.log('Response text:', data.response);
       console.log('Answer field:', data.answer);
       console.log('Debug output field:', data.debug_output);
       console.log('Full response object keys:', Object.keys(data));
-      */
 
       // Handle different possible response formats
       let responseText = '';
@@ -266,11 +264,9 @@ const Chat = ({
         responseText = 'Received response but could not parse content.';
       }
 
-      /* 
       console.log('Final response text to display:', responseText);
       console.log('Response text type:', typeof responseText);
       console.log('Response text length:', responseText.length);
-      */
       
       // Add assistant response to chat
       setMessages(prev => {
@@ -278,6 +274,11 @@ const Chat = ({
         //console.log('Updated messages:', newMessages);
         return newMessages;
       });
+      
+      // Send debug output to debug panel if present
+      if (debugMode && data.debug_output) {
+        onDebugToggle?.(data.debug_output);
+      }
       
       // Update API status to online if request succeeded
       if (apiStatus !== 'online') {

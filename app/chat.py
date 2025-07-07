@@ -155,12 +155,6 @@ def run_chat_query(user_id: str, project_folder: str, session_id: str, question:
     
     if debug:
         debug_output += f"\n✅ After filtering with threshold {score_threshold}: {len(filtered_candidates)} candidates remain\n"
-        if filtered_candidates:
-            context_str = "\n\n".join([node.get_content() for node in filtered_candidates])
-            full_prompt = f"System: {system_prompt}\nContext: {context_str}\nUser: {question}"
-            debug_output += f"\n📝 Full Prompt to LLM:\n{full_prompt}\n"
-        else:
-            debug_output += f"\n⚠️ No candidates meet the threshold {score_threshold}, using memory-only approach\n"
 
     # If no candidates meet the threshold, use memory-only approach
     if not filtered_candidates:

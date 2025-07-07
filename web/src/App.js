@@ -26,9 +26,6 @@ function App() {
     if (action === 'toggle') {
       const newDebugMode = !debugMode;
       setDebugMode(newDebugMode);
-      if (!debugMode) {
-        setDebugOutput('Debug mode enabled. Send a message to see debug output.\n');
-      }
     } else if (action === 'clear') {
       setDebugOutput('');
     } else if (action && action !== 'toggle') {

@@ -125,6 +125,24 @@
   border-color: #0e639c;
 }
 
+.serve-chat-btn {
+  background: #3c3c3c;
+  border: 1px solid #565656;
+  color: #d4d4d4;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background-color 0.2s;
+}
+
+.serve-chat-btn:hover {
+  background: #464647;
+}
+
 .editor-main {
   flex: 1;
   display: flex;
