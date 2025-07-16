@@ -80,13 +80,28 @@ const Homepage = ({ onProjectSelect }) => {
         setStatusMessage('Uploading files...');
         
         for (const file of uploadedFiles) {
-          await s3Service.uploadFileContentToProject(
-            file.name, 
-            file.content, 
-            userId, 
-            newProjectName,
-            file.path || file.name
-          );
+          // Handle PDFs differently - they need to be uploaded as binary files
+          if (file.isPdf && file.originalFile) {
+            // Upload PDF as binary file using the original File object
+            await s3Service.uploadFileToProject(
+              file.originalFile,
+              userId,
+              newProjectName,
+              file.path || file.name
+            );
+          } else if (!file.isPdf) {
+            // Upload text files normally
+            await s3Service.uploadFileContentToProject(
+              file.name, 
+              file.content, 
+              userId, 
+              newProjectName,
+              file.path || file.name
+            );
+          } else {
+            // PDF without original file - skip and warn
+            console.warn('PDF uploads from Homepage require the original file object. Please use the FileUploader component for PDF files.');
+          }
         }
         
         // Embed the files for AI chat
@@ -318,13 +333,22 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
     // Read file contents
     const filesWithContent = await Promise.all(
       supportedFiles.map(async (file) => {
-        const content = await file.text();
+        let content;
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          // For PDFs, don't read content - they'll be handled as binary files
+          content = null;
+        } else {
+          // For text files, read as text
+          content = await file.text();
+        }
         return {
           name: file.name,
           size: file.size,
           content: content,
           lastModified: file.lastModified,
-          path: file.webkitRelativePath || file.name
+          path: file.webkitRelativePath || file.name,
+          isPdf: file.name.toLowerCase().endsWith('.pdf'),
+          originalFile: file.name.toLowerCase().endsWith('.pdf') ? file : null
         };
       })
     );
@@ -350,13 +374,22 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
     // Read file contents
     const filesWithContent = await Promise.all(
       supportedFiles.map(async (file) => {
-        const content = await file.text();
+        let content;
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          // For PDFs, don't read content - they'll be handled as binary files
+          content = null;
+        } else {
+          // For text files, read as text
+          content = await file.text();
+        }
         return {
           name: file.name,
           size: file.size,
           content: content,
           lastModified: file.lastModified,
-          path: file.webkitRelativePath || file.name
+          path: file.webkitRelativePath || file.name,
+          isPdf: file.name.toLowerCase().endsWith('.pdf'),
+          originalFile: file.name.toLowerCase().endsWith('.pdf') ? file : null
         };
       })
     );

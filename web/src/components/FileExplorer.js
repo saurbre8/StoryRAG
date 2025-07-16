@@ -211,14 +211,25 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
 
     try {
       for (const file of files) {
-        // Read file content
-        const content = await readFileContent(file);
+        let content;
+        
+        // Handle PDFs differently - don't read content for binary files
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          content = null; // PDFs will be handled as binary files
+        } else {
+          // Read file content for text files
+          content = await readFileContent(file);
+        }
         
         // Determine file path based on selected folder
         const filePath = selectedFolder ? `${selectedFolder}/${file.name}` : file.name;
         
-        // Call the upload handler
-        await onFileUpload(file.name, content, filePath, file.type);
+        // Call the upload handler with the file object for PDFs
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          await onFileUpload(file, null, filePath, file.type);
+        } else {
+          await onFileUpload(file.name, content, filePath, file.type);
+        }
       }
       
       // Clear the file input
@@ -355,7 +366,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
             <button 
               className="upload-file-btn"
               onClick={triggerFileUpload}
-              title="Upload existing file"
+              title="Upload existing file (supports .md, .txt, .pdf, and other text files)"
             >
               📁
             </button>

@@ -231,6 +231,30 @@
   word-break: break-all;
 }
 
+.pdf-preview-container {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+}
+
+.pdf-info {
+  text-align: center;
+  color: #4a5568;
+}
+
+.pdf-info p {
+  margin: 10px 0;
+  font-size: 1rem;
+}
+
+.pdf-info p:first-child {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
 @media (max-width: 768px) {
   .file-viewer-header {
     flex-direction: column;
