@@ -17,6 +17,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import ProjectManager from './ProjectManager';
+import PDFViewer from './PDFViewer';
 import s3Service from '../services/s3Service';
 import './EditTab.css';
 
@@ -176,12 +177,15 @@ const EditTab = () => {
             style={{ paddingLeft: `${depth * 20 + 30}px` }}
             onClick={() => handleFileSelect(file)}
           >
-            <div className="file-icon">📄</div>
+            <div className="file-icon">
+              {isPDFFile(file.name) ? '📕' : '📄'}
+            </div>
             <div className="file-details">
               <div className="file-name">{file.name}</div>
               <div className="file-meta">
                 <span className="file-size">{formatFileSize(file.size || 0)}</span>
                 <span className="file-date">{formatDate(file.lastModified)}</span>
+                {isPDFFile(file.name) && <span className="file-type">PDF</span>}
               </div>
             </div>
           </div>
@@ -201,6 +205,11 @@ const EditTab = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Helper function to check if a file is a PDF
+  const isPDFFile = (filename) => {
+    return filename.toLowerCase().endsWith('.pdf');
   };
 
   // Start with all folders closed by default
@@ -275,18 +284,24 @@ const EditTab = () => {
                 )}
               </div>
 
-              {selectedFile && fileContent && (
-                <div className="file-viewer">
-                  <div className="file-viewer-header">
-                    <h5>{selectedFile.name.replace(/\.md$/, '')}</h5>
-                    <div className="file-path-info">
-                      {selectedFile.key.split('/').slice(3).join('/')}
+              {selectedFile && (
+                isPDFFile(selectedFile.name) ? (
+                  <PDFViewer file={selectedFile} auth={auth} />
+                ) : (
+                  fileContent && (
+                    <div className="file-viewer">
+                      <div className="file-viewer-header">
+                        <h5>{selectedFile.name.replace(/\.md$/, '')}</h5>
+                        <div className="file-path-info">
+                          {selectedFile.key.split('/').slice(3).join('/')}
+                        </div>
+                      </div>
+                      <div className="file-content">
+                        <pre className="content-display">{fileContent}</pre>
+                      </div>
                     </div>
-                  </div>
-                  <div className="file-content">
-                    <pre className="content-display">{fileContent}</pre>
-                  </div>
-                </div>
+                  )
+                )
               )}
             </div>
           </div>

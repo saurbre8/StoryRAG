@@ -314,7 +314,9 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
             onDragEnd={handleFileDragEnd}
           >
             <span className="drag-handle">⋮⋮</span>
-            <span className="file-icon">📄</span>
+            <span className="file-icon">
+              {file.name.toLowerCase().endsWith('.pdf') ? '📕' : '📄'}
+            </span>
             <span className="file-name">{file.name}</span>
             {/* Add delete button */}
             <button
@@ -353,16 +355,16 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
             <button 
               className="upload-file-btn"
               onClick={triggerFileUpload}
-              title="Upload file"
+              title="Upload existing file"
             >
-              ⬆
+              📁
             </button>
             <button 
               className="new-file-btn"
               onClick={() => setShowCreateModal(true)}
               title="Create new file"
             >
-              ✚
+              ✏️
             </button>
             <input
               type="file"
@@ -370,7 +372,7 @@ const FileExplorer = ({ files, selectedFile, onFileSelect, isLoading, onFileCrea
               onChange={handleFileUpload}
               style={{ display: 'none' }}
               multiple
-              accept=".md,.txt,.json,.js,.jsx,.ts,.tsx,.py,.html,.css,.yml,.yaml"
+              accept=".md,.txt,.json,.js,.jsx,.ts,.tsx,.py,.html,.css,.yml,.yaml,.pdf"
             />
           </div>
         )}

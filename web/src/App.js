@@ -41,16 +41,18 @@ function App() {
   return (
     <AuthWrapper>
       <div className={`App vscode-app ${debugMode ? 'debug-panel-visible' : ''}`}>
-        {/* Debug Toggle Button - Always visible */}
-        <div className="debug-toggle-container">
-          <button 
-            className={`debug-toggle-btn ${debugMode ? 'active' : ''}`}
-            onClick={() => handleDebugToggle('toggle')}
-            title="Toggle debug mode"
-          >
-            🐛 Debug
-          </button>
-        </div>
+        {/* Debug Toggle Button - Only visible in editor view */}
+        {currentView === 'editor' && (
+          <div className="debug-toggle-container">
+            <button 
+              className={`debug-toggle-btn ${debugMode ? 'active' : ''}`}
+              onClick={() => handleDebugToggle('toggle')}
+              title="Toggle debug mode"
+            >
+              🐛 Debug
+            </button>
+          </div>
+        )}
 
         {currentView === 'homepage' && (
           <Homepage onProjectSelect={handleProjectSelect} />

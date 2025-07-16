@@ -270,7 +270,7 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
   const processEntry = async (entry, files, path = '') => {
     if (entry.isFile) {
       const file = await new Promise((resolve) => entry.file(resolve));
-      if (file.name.endsWith('.md')) {
+      if (file.name.endsWith('.md') || file.name.toLowerCase().endsWith('.pdf')) {
         Object.defineProperty(file, 'webkitRelativePath', {
           value: path + file.name,
           writable: false
@@ -303,19 +303,21 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
       }
     }
     
-    // Filter for markdown files only
-    const markdownFiles = files.filter(file => 
-      file.name.endsWith('.md') || file.type === 'text/markdown'
+    // Filter for markdown and PDF files
+    const supportedFiles = files.filter(file => 
+      file.name.endsWith('.md') || 
+      file.type === 'text/markdown' ||
+      file.name.toLowerCase().endsWith('.pdf')
     );
 
-    if (markdownFiles.length === 0) {
-      alert('No .md files found. Please upload markdown files.');
+    if (supportedFiles.length === 0) {
+      alert('No supported files found. Please upload .md or .pdf files.');
       return;
     }
 
     // Read file contents
     const filesWithContent = await Promise.all(
-      markdownFiles.map(async (file) => {
+      supportedFiles.map(async (file) => {
         const content = await file.text();
         return {
           name: file.name,
@@ -333,19 +335,21 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
   const handleFileInput = useCallback(async (e) => {
     const files = Array.from(e.target.files);
     
-    // Filter for markdown files only
-    const markdownFiles = files.filter(file => 
-      file.name.endsWith('.md') || file.type === 'text/markdown'
+    // Filter for markdown and PDF files
+    const supportedFiles = files.filter(file => 
+      file.name.endsWith('.md') || 
+      file.type === 'text/markdown' ||
+      file.name.toLowerCase().endsWith('.pdf')
     );
 
-    if (markdownFiles.length === 0) {
-      alert('No .md files found. Please select markdown files or folders.');
+    if (supportedFiles.length === 0) {
+      alert('No supported files found. Please select .md or .pdf files or folders.');
       return;
     }
 
     // Read file contents
     const filesWithContent = await Promise.all(
-      markdownFiles.map(async (file) => {
+      supportedFiles.map(async (file) => {
         const content = await file.text();
         return {
           name: file.name,
@@ -389,16 +393,16 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
         {isDragActive ? (
           <div>
             <h4>Drop your files or folders here!</h4>
-            <p>Only .md files will be processed</p>
+            <p>Only .md and .pdf files will be processed</p>
           </div>
         ) : (
           <div>
             <h4>Drag & drop files or folders</h4>
             <p>or <span className="click-text">click to browse</span></p>
-            <p className="file-types">Supports .md files only</p>
+            <p className="file-types">Supports .md and .pdf files</p>
             <div className="upload-options">
-              <div className="option">📄 Individual .md files</div>
-              <div className="option">📂 Folders with .md files</div>
+              <div className="option">📄 Individual .md or .pdf files</div>
+              <div className="option">📂 Folders with .md or .pdf files</div>
             </div>
           </div>
         )}
@@ -412,6 +416,7 @@ const SimpleFileUpload = ({ onFilesUploaded }) => {
         directory=""
         onChange={handleFileInput}
         style={{ display: 'none' }}
+        accept=".md,application/pdf"
       />
     </div>
   );

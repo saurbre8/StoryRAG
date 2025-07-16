@@ -1,6 +1,7 @@
 import os
 import hashlib
 import uuid
+import time
 from pathlib import Path
 from markdown import markdown
 from bs4 import BeautifulSoup
@@ -15,6 +16,14 @@ import boto3
 from io import BytesIO
 from qdrant_client.models import PayloadSchemaType
 from openai import OpenAI
+try:
+    from pdf_processor import PDFProcessor
+except ImportError:
+    # Fallback for when running from different directory
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from pdf_processor import PDFProcessor
 
 # === ENVIRONMENT SETUP ===
 load_dotenv()
@@ -38,7 +47,7 @@ s3_client = boto3.client("s3")
 def hash_to_uuid(text):
     return str(uuid.UUID(hashlib.sha256(text.encode("utf-8")).hexdigest()[0:32]))
 
-def load_and_chunk_markdown_from_s3(bucket_name, user_id, project_folder=None, debug=False):
+def load_and_chunk_markdown_from_s3(bucket_name, user_id, project_folder=None, debug=True):
     chunks = []
     prefix = f"users/{user_id}/"
     if project_folder:
@@ -84,13 +93,19 @@ def load_and_chunk_markdown_from_s3(bucket_name, user_id, project_folder=None, d
                         "user_id": str(user_id),
                         "project_folder": file_project_folder,
                         "filename": filename,
-                        "source": key
+                        "source": key,
+                        "file_type": "markdown"
                     }
                 })
     
     if debug:
         print(f"\n📦 Generated {len(chunks)} chunks from all files")
     return chunks
+
+def load_and_chunk_pdfs_from_s3(bucket_name, user_id, project_folder=None, debug=False):
+    """Load and chunk PDF files from S3 using the PDFProcessor."""
+    pdf_processor = PDFProcessor(s3_client)
+    return pdf_processor.load_and_chunk_pdfs_from_s3(bucket_name, user_id, project_folder, debug)
 
 # === STEP 2: Filter Out Already Uploaded Chunks ===
 def filter_new_chunks(client, collection_name, chunks, debug=False):
@@ -161,6 +176,10 @@ def ensure_metadata_indexes(client, collection_name, debug=False):
         "user_id": PayloadSchemaType.KEYWORD,
         "project_folder": PayloadSchemaType.KEYWORD,
         "filename": PayloadSchemaType.KEYWORD,
+        "file_type": PayloadSchemaType.KEYWORD,
+        "is_scanned": PayloadSchemaType.BOOL,
+        "ocr_used": PayloadSchemaType.BOOL,
+        "extraction_method": PayloadSchemaType.KEYWORD,
     }
 
     existing_indexes = client.get_collection(collection_name).payload_schema
@@ -268,7 +287,9 @@ def cleanup_deleted_files(client, collection_name, user_id, project_folder=None,
         print(f"\n🔍 Checking for deleted files in s3://{S3_BUCKET_NAME}/{prefix}")
     
     response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=prefix)
-    existing_s3_files = {obj["Key"] for obj in response.get("Contents", []) if obj["Key"].endswith(".md")}
+    # Check for both markdown and PDF files
+    existing_s3_files = {obj["Key"] for obj in response.get("Contents", []) 
+                        if obj["Key"].endswith((".md", ".pdf"))}
     
     if debug:
         print(f"📁 Found {len(existing_s3_files)} files in S3")
@@ -328,6 +349,99 @@ def embed_s3_markdown(user_id: str, project_folder: str = None, debug: bool = Fa
     if debug:
         print("\n🧠 Filtering out already uploaded chunks...")
     new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks, debug)
+
+    if not new_chunks and not cleanup_result["deleted_vectors"]:
+        return {"message": "✅ No changes needed."}
+
+    if not new_chunks:
+        return {
+            "message": f"✅ Cleaned up {cleanup_result['deleted_vectors']} vectors from deleted files.",
+            "deleted_files": cleanup_result["deleted_files"]
+        }
+
+    if debug:
+        print(f"🧠 Embedding {len(new_chunks)} new chunks...")
+    embedded = embed_chunks(new_chunks, EMBEDDING_MODEL, debug)
+
+    if debug:
+        print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
+    upload_to_qdrant(embedded, client, COLLECTION_NAME, debug)
+
+    return {
+        "message": f"✅ Uploaded {len(embedded)} chunks to Qdrant.",
+        "deleted_files": cleanup_result["deleted_files"],
+        "deleted_vectors": cleanup_result["deleted_vectors"],
+        "new_chunks": len(embedded)
+    }
+
+def embed_s3_pdfs(user_id: str, project_folder: str = None, debug: bool = False):
+    """Embed PDF files from S3."""
+    if debug:
+        print(f"📂 Loading and chunking PDF files from s3://{S3_BUCKET_NAME}/{user_id}/")
+    chunks = load_and_chunk_pdfs_from_s3(S3_BUCKET_NAME, user_id, project_folder, debug)
+
+    client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
+
+    # First, clean up any deleted files
+    if debug:
+        print("\n🧹 Cleaning up vectors for deleted files...")
+    cleanup_result = cleanup_deleted_files(client, COLLECTION_NAME, user_id, project_folder, debug)
+
+    if debug:
+        print("\n🧠 Filtering out already uploaded chunks...")
+    new_chunks = filter_new_chunks(client, COLLECTION_NAME, chunks, debug)
+
+    if not new_chunks and not cleanup_result["deleted_vectors"]:
+        return {"message": "✅ No changes needed."}
+
+    if not new_chunks:
+        return {
+            "message": f"✅ Cleaned up {cleanup_result['deleted_vectors']} vectors from deleted files.",
+            "deleted_files": cleanup_result["deleted_files"]
+        }
+
+    if debug:
+        print(f"🧠 Embedding {len(new_chunks)} new chunks...")
+    embedded = embed_chunks(new_chunks, EMBEDDING_MODEL, debug)
+
+    if debug:
+        print(f"⬆️ Uploading to Qdrant Cloud ({COLLECTION_NAME})...")
+    upload_to_qdrant(embedded, client, COLLECTION_NAME, debug)
+
+    return {
+        "message": f"✅ Uploaded {len(embedded)} PDF chunks to Qdrant.",
+        "deleted_files": cleanup_result["deleted_files"],
+        "deleted_vectors": cleanup_result["deleted_vectors"],
+        "new_chunks": len(embedded)
+    }
+
+def embed_s3_all_files(user_id: str, project_folder: str = None, debug: bool = False):
+    """Embed both markdown and PDF files from S3."""
+    if debug:
+        print(f"📂 Loading and chunking all files from s3://{S3_BUCKET_NAME}/{user_id}/")
+    
+    # Process markdown files
+    markdown_chunks = load_and_chunk_markdown_from_s3(S3_BUCKET_NAME, user_id, project_folder, debug)
+    
+    # Process PDF files
+    pdf_chunks = load_and_chunk_pdfs_from_s3(S3_BUCKET_NAME, user_id, project_folder, debug)
+    
+    # Combine all chunks
+    all_chunks = markdown_chunks + pdf_chunks
+    
+    if debug:
+        print(f"📦 Total chunks: {len(all_chunks)} (Markdown: {len(markdown_chunks)}, PDF: {len(pdf_chunks)})")
+
+    client = QdrantClient(url=QDRANT_HOST, api_key=QDRANT_API_KEY)
+
+    # First, clean up any deleted files
+    if debug:
+        print("\n🧹 Cleaning up vectors for deleted files...")
+    cleanup_result = cleanup_deleted_files(client, COLLECTION_NAME, user_id, project_folder, debug)
+
+    if debug:
+        print("\n🧠 Filtering out already uploaded chunks...")
+    new_chunks = filter_new_chunks(client, COLLECTION_NAME, all_chunks, debug)
 
     if not new_chunks and not cleanup_result["deleted_vectors"]:
         return {"message": "✅ No changes needed."}

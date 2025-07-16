@@ -443,6 +443,27 @@ class S3Service {
     }
   }
 
+  // Get a presigned URL for a file
+  async getPresignedUrl(key) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const params = {
+      Bucket: this.bucketName,
+      Key: key,
+      Expires: 3600 // URL expires in 1 hour
+    };
+
+    try {
+      const url = await this.s3.getSignedUrlPromise('getObject', params);
+      return url;
+    } catch (error) {
+      console.error('Error generating presigned URL:', error);
+      throw new Error(`Failed to generate presigned URL: ${error.message}`);
+    }
+  }
+
   // Delete a file from S3
   async deleteFile(fileKey) {
     if (!this.s3) {

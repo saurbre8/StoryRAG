@@ -50,17 +50,19 @@ const FileUploader = ({ onFilesUploaded }) => {
       return;
     }
 
-    // Filter for markdown files only
-    const markdownFiles = acceptedFiles.filter(file => 
-      file.name.endsWith('.md') || file.type === 'text/markdown'
+    // Filter for markdown and PDF files
+    const supportedFiles = acceptedFiles.filter(file => 
+      file.name.endsWith('.md') || 
+      file.type === 'text/markdown' ||
+      file.name.toLowerCase().endsWith('.pdf')
     );
 
-    if (markdownFiles.length === 0) {
-      alert('No .md files found in the uploaded content. Please upload folders or files containing markdown files.');
+    if (supportedFiles.length === 0) {
+      alert('No supported files found. Please upload .md or .pdf files.');
       return;
     }
 
-    //console.log(`Found ${markdownFiles.length} markdown files out of ${acceptedFiles.length} total files`);
+    //console.log(`Found ${supportedFiles.length} supported files out of ${acceptedFiles.length} total files`);
 
     // Helper function to strip the root folder from the path
     const stripRootFolder = (relativePath) => {
@@ -92,7 +94,7 @@ const FileUploader = ({ onFilesUploaded }) => {
 
       // Process files with both local reading and S3 upload to project
       const filesWithContent = await Promise.all(
-        markdownFiles.map(async (file, index) => {
+        supportedFiles.map(async (file, index) => {
           try {
             // Read file content for local display
             const content = await file.text();
@@ -259,6 +261,7 @@ const FileUploader = ({ onFilesUploaded }) => {
           {...getInputProps()} 
           webkitdirectory=""
           directory=""
+          accept=".md,application/pdf"
         />
         <div className="dropzone-content">
           {!selectedProject ? (
@@ -297,14 +300,14 @@ const FileUploader = ({ onFilesUploaded }) => {
               {dropzoneActive || isDragActive ? (
                 <div>
                   <h3>Drop your files or folders here!</h3>
-                  <p>Release to upload to "{selectedProject.name}" (only .md files will be processed)</p>
+                  <p>Release to upload to "{selectedProject.name}" (.md and .pdf files will be processed)</p>
                   <p className="s3-info">Files will be securely stored and embedded for AI chat</p>
                 </div>
               ) : (
                 <div>
                   <h3>Drag & drop files or folders here</h3>
                   <p>or <span className="click-text">click to browse</span></p>
-                  <p className="file-types">Automatically filters for .md files only</p>
+                  <p className="file-types">Automatically filters for .md and .pdf files</p>
                   <p className="s3-info">✅ Files will be stored in project: <strong>{selectedProject.name}</strong></p>
                   <p className="embed-info">🧠 Files will be automatically embedded for AI chat</p>
                   <div className="upload-options">

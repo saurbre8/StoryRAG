@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from 'react-oidc-context';
 import FileExplorer from './FileExplorer';
 import MarkdownEditor from './MarkdownEditor';
+import PDFViewer from './PDFViewer';
 import ChatPanel from './ChatPanel';
 import s3Service from '../services/s3Service';
 import './VSCodeEditor.css';
@@ -157,6 +158,11 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
       }
       saveFile(selectedFile, fileContent);
     }
+  };
+
+  // Helper function to check if a file is a PDF
+  const isPDFFile = (filename) => {
+    return filename.toLowerCase().endsWith('.pdf');
   };
 
   // Handle Ctrl+S for manual save
@@ -793,13 +799,24 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
             <div className="editor-loading">
               Loading project files...
             </div>
-          ) : selectedFile && fileContent !== null ? (
-            <MarkdownEditor
-              file={selectedFile}
-              content={fileContent}
-              onChange={handleContentChange}
-              projectFiles={files}
-            />
+          ) : selectedFile ? (
+            isPDFFile(selectedFile.name) ? (
+              <PDFViewer file={selectedFile} auth={auth} />
+            ) : fileContent !== null ? (
+              <MarkdownEditor
+                file={selectedFile}
+                content={fileContent}
+                onChange={handleContentChange}
+                projectFiles={files}
+              />
+            ) : (
+              <div className="no-file-selected">
+                <div className="welcome-message">
+                  <h3>Loading file...</h3>
+                  <p>Please wait while we load the file content</p>
+                </div>
+              </div>
+            )
           ) : (
             <div className="no-file-selected">
               <div className="welcome-message">

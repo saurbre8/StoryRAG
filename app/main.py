@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Query, HTTPException
-from app.embed import embed_s3_markdown
+from app.embed import embed_s3_all_files
 from fastapi.middleware.cors import CORSMiddleware
 from app.chat import run_chat_query
 import logging
@@ -25,12 +25,14 @@ async def health_check():
 @app.post("/embed")
 def embed_route(
     user_id: str = Query(...),
-    project_folder: str = Query(None)
+    project_folder: str = Query(None),
+    debug: bool = Query(False)
 ):
+    """Embed all files from S3 (markdown and PDFs). This is the main endpoint called by the frontend."""
     try:
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
-        return embed_s3_markdown(user_id, project_folder)
+        return embed_s3_all_files(user_id, project_folder, debug)
     except Exception as e:
         logger.error(f"Embed error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -43,7 +45,7 @@ async def chat_route(
     question: str = Query(...),
     debug: bool = Query(False),
     system_prompt: str = Query(None),
-    score_threshold: float = Query(0.5, ge=0.0, le=1.0, description="Minimum similarity score for document retrieval (0.0-1.0)")
+    score_threshold: float = Query(0.3, ge=0.0, le=1.0, description="Minimum similarity score for document retrieval (0.0-1.0)")
 ):
     try:
         if not user_id or not project_folder or not question or not session_id:
