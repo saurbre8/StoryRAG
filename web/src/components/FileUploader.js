@@ -96,6 +96,9 @@ const FileUploader = ({ onFilesUploaded }) => {
       const filesWithContent = await Promise.all(
         supportedFiles.map(async (file, index) => {
           try {
+            // Read file content for local display
+            const content = await file.text();
+            
             // Track upload progress for this file
             const progressKey = `file-${index}`;
             setUploadProgress(prev => ({ ...prev, [progressKey]: 0 }));
@@ -105,32 +108,16 @@ const FileUploader = ({ onFilesUploaded }) => {
             const finalPath = strippedPath ? `${strippedPath}` : file.name;
 
             // Upload to S3 in the selected project with folder structure
-            let uploadResult;
-            if (file.name.toLowerCase().endsWith('.pdf')) {
-              // For PDFs, upload as binary file
-              uploadResult = await s3Service.uploadFileToProject(
-                file,
-                userId,
-                selectedProject.name,
-                finalPath,
-                (percent) => {
-                  setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
-                }
-              );
-            } else {
-              // For text files, read content and upload
-              const content = await file.text();
-              uploadResult = await s3Service.uploadFileContentToProject(
-                file.name, 
-                content, 
-                userId,
-                selectedProject.name,
-                finalPath,
-                (percent) => {
-                  setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
-                }
-              );
-            }
+            const uploadResult = await s3Service.uploadFileContentToProject(
+              file.name, 
+              content, 
+              userId,
+              selectedProject.name,
+              finalPath,
+              (percent) => {
+                setUploadProgress(prev => ({ ...prev, [progressKey]: percent }));
+              }
+            );
 
             // Clear progress for this file
             setUploadProgress(prev => {
@@ -142,32 +129,31 @@ const FileUploader = ({ onFilesUploaded }) => {
             return {
               name: file.name,
               size: file.size,
-              content: file.name.toLowerCase().endsWith('.pdf') ? null : content, // No content for PDFs
+              content: content,
               lastModified: file.lastModified,
               path: finalPath,
               s3Key: uploadResult.key,
               s3Location: uploadResult.location,
               projectName: selectedProject.name,
-              uploadedToS3: true,
-              isPdf: file.name.toLowerCase().endsWith('.pdf')
+              uploadedToS3: true
             };
           } catch (error) {
             console.error(`Failed to upload ${file.name}:`, error);
             
             // Still return file data for local viewing, but mark S3 upload as failed
+            const content = await file.text();
             const strippedPath = stripRootFolder(file.webkitRelativePath);
             const finalPath = strippedPath ? `${strippedPath}` : file.name;
             
             return {
               name: file.name,
               size: file.size,
-              content: file.name.toLowerCase().endsWith('.pdf') ? null : await file.text(),
+              content: content,
               lastModified: file.lastModified,
               path: finalPath,
               projectName: selectedProject.name,
               uploadedToS3: false,
-              uploadError: error.message,
-              isPdf: file.name.toLowerCase().endsWith('.pdf')
+              uploadError: error.message
             };
           }
         })

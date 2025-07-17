@@ -220,12 +220,12 @@ class S3Service {
     const uploadParams = {
       Bucket: this.bucketName,
       Key: key,
-      Body: content || '', // Handle null content
+      Body: content,
       ContentType: 'text/markdown',
       Metadata: {
         'original-name': fileName,
         'upload-timestamp': new Date().toISOString(),
-        'content-length': (content || '').length.toString(), // Handle null content
+        'content-length': content.length.toString(),
         'project-name': projectName,
         'user-id': userId
       }
@@ -254,57 +254,6 @@ class S3Service {
       };
     } catch (error) {
       console.error('Error uploading file content to project:', error);
-      throw new Error(`Upload failed: ${error.message}`);
-    }
-  }
-
-  // Upload a binary file to a specific project with folder structure
-  async uploadFileToProject(file, userId, projectName, filePath = null, onProgress = null) {
-    if (!this.s3) {
-      throw new Error('S3 service not initialized');
-    }
-
-    // Use the full path if provided, otherwise just the filename
-    const fileKey = filePath || file.name;
-    const key = `${this.getProjectPrefix(userId, projectName)}${fileKey}`;
-    
-    const uploadParams = {
-      Bucket: this.bucketName,
-      Key: key,
-      Body: file,
-      ContentType: file.type || 'application/octet-stream',
-      Metadata: {
-        'original-name': file.name,
-        'upload-timestamp': new Date().toISOString(),
-        'file-size': file.size.toString(),
-        'project-name': projectName,
-        'user-id': userId
-      }
-    };
-
-    try {
-      const upload = this.s3.upload(uploadParams);
-      
-      // Track upload progress if callback provided
-      if (onProgress) {
-        upload.on('httpUploadProgress', (progress) => {
-          const percentCompleted = Math.round((progress.loaded * 100) / progress.total);
-          onProgress(percentCompleted);
-        });
-      }
-
-      const result = await upload.promise();
-      //console.log('File uploaded to project successfully:', result.Location);
-      
-      return {
-        success: true,
-        key: key,
-        location: result.Location,
-        etag: result.ETag,
-        projectName: projectName
-      };
-    } catch (error) {
-      console.error('Error uploading file to project:', error);
       throw new Error(`Upload failed: ${error.message}`);
     }
   }
@@ -419,12 +368,12 @@ class S3Service {
     const uploadParams = {
       Bucket: this.bucketName,
       Key: key,
-      Body: content || '', // Handle null content
+      Body: content,
       ContentType: 'text/markdown',
       Metadata: {
         'original-name': fileName,
         'upload-timestamp': new Date().toISOString(),
-        'content-length': (content || '').length.toString() // Handle null content
+        'content-length': content.length.toString()
       }
     };
 

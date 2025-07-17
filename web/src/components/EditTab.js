@@ -121,12 +121,6 @@ const EditTab = () => {
   const loadFileContent = async (file) => {
     if (!file || !auth.user) return;
     
-    // Don't load content for PDF files - they'll be handled by PDFViewer
-    if (isPDFFile(file.name)) {
-      setFileContent(null);
-      return;
-    }
-    
     try {
       const initialized = s3Service.initializeWithCognito(auth.user);
       if (!initialized) {
@@ -292,7 +286,7 @@ const EditTab = () => {
 
               {selectedFile && (
                 isPDFFile(selectedFile.name) ? (
-                  <PDFPreviewFromS3 file={selectedFile} />
+                  <PDFViewer file={selectedFile} auth={auth} />
                 ) : (
                   fileContent && (
                     <div className="file-viewer">
@@ -315,11 +309,6 @@ const EditTab = () => {
       </div>
     </div>
   );
-};
-
-const PDFPreviewFromS3 = ({ file }) => {
-  const auth = useAuth();
-  return <PDFViewer file={file} auth={auth} />;
 };
 
 export default EditTab; 

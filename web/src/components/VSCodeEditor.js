@@ -87,12 +87,6 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
   const loadFileContent = async (file) => {
     if (!file || !auth.user) return;
     
-    // Don't load content for PDF files - they'll be handled by PDFViewer
-    if (isPDFFile(file.name)) {
-      setFileContent(null);
-      return;
-    }
-    
     try {
       const initialized = s3Service.initializeWithCognito(auth.user);
       if (!initialized) {
@@ -109,13 +103,6 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
 
   const saveFile = async (file, content) => {
     if (!file || !auth.user) return;
-    
-    // Don't save PDF files as text content
-    if (isPDFFile(file.name)) {
-      console.log('PDF files are read-only and cannot be edited as text');
-      setSaveStatus('saved');
-      return;
-    }
     
     try {
       setSaveStatus('saving');
@@ -156,10 +143,9 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
 
   const handleContentChange = (newContent) => {
     setFileContent(newContent);
+    setSaveStatus('unsaved');
     
-    // Don't trigger saves for PDF files
-    if (selectedFile && !isPDFFile(selectedFile.name)) {
-      setSaveStatus('unsaved');
+    if (selectedFile) {
       debouncedSave(selectedFile, newContent);
     }
   };
@@ -318,7 +304,7 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
     }
   };
 
-  const handleFileUpload = async (fileNameOrFile, content, filePath, fileType) => {
+  const handleFileUpload = async (fileName, content, filePath, fileType) => {
     if (!project || !auth.user) return;
     
     try {
@@ -329,34 +315,14 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
         throw new Error('Failed to initialize S3 service');
       }
 
-      // Check if we received a File object (for PDFs) or a filename (for text files)
-      const isFileObject = fileNameOrFile instanceof File;
-      const fileName = isFileObject ? fileNameOrFile.name : fileNameOrFile;
-
-      // Handle PDFs differently - they need to be uploaded as binary files
-      if (fileName.toLowerCase().endsWith('.pdf')) {
-        if (!isFileObject) {
-          alert('PDF uploads require the file object. Please use the main file uploader for PDF files.');
-          return;
-        }
-        
-        // Upload PDF as binary file
-        await s3Service.uploadFileToProject(
-          fileNameOrFile, // Pass the File object
-          userId,
-          project.name,
-          filePath
-        );
-      } else {
-        // Upload text file content
-        await s3Service.uploadFileContentToProject(
-          fileName,
-          content,
-          userId,
-          project.name,
-          filePath
-        );
-      }
+      // Upload the file to S3
+      await s3Service.uploadFileContentToProject(
+        fileName,
+        content,
+        userId,
+        project.name,
+        filePath
+      );
 
       // Reload the file list to include the new file
       await loadProjectFiles();

@@ -15,14 +15,11 @@
  * - Responsive layout with side-by-side file list and preview
  */
 import React, { useState } from 'react';
-import PDFViewer from './PDFViewer';
-import { useAuth } from 'react-oidc-context';
 import './FileViewer.css';
 
 const FileViewer = ({ files, onClear }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const auth = useAuth();
 
   const filteredFiles = files.filter(file =>
     file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -47,11 +44,6 @@ const FileViewer = ({ files, onClear }) => {
       return file.path;
     }
     return file.name;
-  };
-
-  // Helper function to check if a file is a PDF
-  const isPDFFile = (filename) => {
-    return filename.toLowerCase().endsWith('.pdf');
   };
 
   return (
@@ -128,27 +120,11 @@ const FileViewer = ({ files, onClear }) => {
               )}
               <div className="file-stats">
                 <span>Size: {formatFileSize(selectedFile.size)}</span>
-                {!isPDFFile(selectedFile.name) && selectedFile.content && (
-                  <>
-                    <span>Words: {selectedFile.content.split(/\s+/).length}</span>
-                    <span>Lines: {selectedFile.content.split('\n').length}</span>
-                  </>
-                )}
+                <span>Words: {selectedFile.content.split(/\s+/).length}</span>
+                <span>Lines: {selectedFile.content.split('\n').length}</span>
                 <span>Status: {selectedFile.uploadedToS3 ? 'Stored in S3' : 'Local only'}</span>
               </div>
-              {isPDFFile(selectedFile.name) ? (
-                <div className="pdf-preview-container">
-                  <div className="pdf-info">
-                    <p>📄 PDF file uploaded successfully</p>
-                    <p>This PDF will be available for viewing in the Edit tab after upload.</p>
-                    {selectedFile.s3Key && (
-                      <p><strong>S3 Key:</strong> {selectedFile.s3Key}</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <pre className="file-content">{selectedFile.content}</pre>
-              )}
+              <pre className="file-content">{selectedFile.content}</pre>
             </div>
           ) : (
             <div className="no-selection">
