@@ -625,6 +625,52 @@ class S3Service {
       throw error;
     }
   }
+
+  // Delete an entire project and all its files
+  async deleteProject(userId, projectName) {
+    if (!this.s3) {
+      throw new Error('S3 service not initialized');
+    }
+
+    const projectPrefix = this.getProjectPrefix(userId, projectName);
+
+    try {
+      // First, list all objects in the project folder
+      const listParams = {
+        Bucket: this.bucketName,
+        Prefix: projectPrefix
+      };
+
+      const result = await this.s3.listObjectsV2(listParams).promise();
+      
+      if (!result.Contents || result.Contents.length === 0) {
+        console.log(`No files found for project ${projectName}`);
+        return { success: true, deletedFiles: 0 };
+      }
+
+      // Prepare delete parameters for batch deletion
+      const deleteParams = {
+        Bucket: this.bucketName,
+        Delete: {
+          Objects: result.Contents.map(item => ({ Key: item.Key }))
+        }
+      };
+
+      // Delete all files in the project
+      const deleteResult = await this.s3.deleteObjects(deleteParams).promise();
+      
+      console.log(`Successfully deleted ${deleteResult.Deleted?.length || 0} files from project ${projectName}`);
+      
+      return {
+        success: true,
+        deletedFiles: deleteResult.Deleted?.length || 0,
+        projectName: projectName
+      };
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      throw new Error(`Failed to delete project: ${error.message}`);
+    }
+  }
 }
 
 export default new S3Service(); 

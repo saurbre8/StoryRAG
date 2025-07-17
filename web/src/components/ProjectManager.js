@@ -15,6 +15,7 @@
  * - Form validation and error handling
  * - Auto-selection of newly created projects
  * - User-specific project isolation
+ * - Project deletion with confirmation
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from 'react-oidc-context';
@@ -28,6 +29,12 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  
+  // ADD THESE STATE VARIABLES FOR DELETE FUNCTIONALITY
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const auth = useAuth();
 
   useEffect(() => {
@@ -122,6 +129,58 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleDeleteProject = async (projectName) => {
+    if (!projectName) return;
+    
+    try {
+      setIsDeleting(true);
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Delete from S3 (embeddings will be auto-deleted)
+      console.log('Deleting project from S3:', projectName);
+      const s3Result = await s3Service.deleteProject(userId, projectName);
+
+      // Reload projects from S3
+      await loadProjectsFromS3();
+      
+      // Clear selection if deleted project was selected
+      if (selectedProject && selectedProject.name === projectName) {
+        onProjectSelect(null);
+      }
+      
+      setShowDeleteModal(false);
+      setProjectToDelete(null);
+      
+      const message = s3Result.deletedFiles > 0 
+        ? `Project "${projectName}" and ${s3Result.deletedFiles} files deleted successfully!`
+        : `Project "${projectName}" deleted successfully!`;
+      
+      alert(message);
+      
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      alert(`Failed to delete project: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteClick = (project, e) => {
+    e.stopPropagation(); // Prevent project selection
+    setProjectToDelete(project);
+    setShowDeleteModal(true);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setProjectToDelete(null);
   };
 
   const handleProjectChange = (e) => {
@@ -244,6 +303,64 @@ const ProjectManager = ({ selectedProject, onProjectSelect, onProjectCreate }) =
               <div className="project-meta">
                 <span>Created: {formatDate(selectedProject.createdAt)}</span>
                 <span>Files: {selectedProject.fileCount || 0}</span>
+              </div>
+            </div>
+            <div className="project-actions">
+              <button 
+                className="delete-project-btn"
+                onClick={(e) => handleDeleteClick(selectedProject, e)}
+                disabled={isDeleting}
+                title="Delete project"
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Delete Project</h3>
+              <button 
+                type = "button"
+                className="close-btn"
+                onClick={handleCancelDelete}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="modal-content">
+              <div className="warning-message">
+                <div className="warning-icon">⚠️</div>
+                <div>
+                  <p><strong>Are you sure you want to delete "{projectToDelete?.name}"?</strong></p>
+                  <p>This action cannot be undone. All files will be permanently deleted.</p>
+                  <p className="file-count">
+                    This project contains {projectToDelete?.fileCount || 0} files.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  type = "button"
+                  className="cancel-btn"
+                  onClick={handleCancelDelete}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="delete-confirm-btn"
+                  onClick={() => handleDeleteProject(projectToDelete?.name)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Project'}
+                </button>
               </div>
             </div>
           </div>

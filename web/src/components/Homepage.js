@@ -14,7 +14,10 @@ const Homepage = ({ onProjectSelect }) => {
   const [isEmbedding, setIsEmbedding] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
   const [statusMessage, setStatusMessage] = useState('');
-  //const [showCreateTab, setShowCreateTab] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const auth = useAuth();
 
   useEffect(() => {
@@ -128,6 +131,59 @@ const Homepage = ({ onProjectSelect }) => {
     }
   };
 
+  // Delete a project
+  const handleDeleteProject = async (projectName) => {
+    if (!projectName) return;
+    
+    try {
+      setIsDeleting(true);
+      const userId = auth.user?.profile?.sub || auth.user?.profile?.username;
+      
+      const initialized = s3Service.initializeWithCognito(auth.user);
+      if (!initialized) {
+        throw new Error('Failed to initialize S3 service');
+      }
+
+      // Delete from S3 (embeddings will be auto-deleted)
+      console.log('Deleting project from S3:', projectName);
+      const s3Result = await s3Service.deleteProject(userId, projectName);
+
+      // Reload projects
+      await loadProjects();
+      
+      setShowDeleteModal(false);
+      setProjectToDelete(null);
+      
+      const message = s3Result.deletedFiles > 0 
+        ? `Project "${projectName}" and ${s3Result.deletedFiles} files deleted successfully!`
+        : `Project "${projectName}" deleted successfully!`;
+      
+      alert(message);
+      
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      alert(`Failed to delete project: ${error.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteClick = (project, e) => {
+    e.stopPropagation(); // Prevent project selection
+    setProjectToDelete(project);
+    setShowDeleteModal(true);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setProjectToDelete(null);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString();
+  };
+
   if (loading) {
     return (
       <div className="homepage">
@@ -182,6 +238,17 @@ const Homepage = ({ onProjectSelect }) => {
                       Updated {formatDate(project.lastModified)}
                     </span>
                   </div>
+                  {/* ADD DELETE BUTTON HERE */}
+                  <div className="project-actions">
+                    <button 
+                      className="delete-project-btn"
+                      onClick={(e) => handleDeleteClick(project, e)}
+                      disabled={isDeleting}
+                      title="Delete project"
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -234,33 +301,76 @@ const Homepage = ({ onProjectSelect }) => {
                   {statusMessage}
                 </div>
               )}
+              
+              <div className="modal-actions">
+                <button 
+                  className="cancel-btn"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={isUploading || isEmbedding}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="create-btn"
+                  onClick={handleCreateProject}
+                  disabled={isUploading || isEmbedding || !newProjectName.trim()}
+                >
+                  {isUploading ? 'Creating...' : isEmbedding ? 'Embedding...' : 'Create Project'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD DELETE MODAL */}
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-header">
+              <h3>Delete Project</h3>
+              <button 
+                className="close-btn"
+                onClick={handleCancelDelete}
+              >
+                ×
+              </button>
             </div>
             
-            <div className="modal-footer">
-              <button 
-                className="cancel-btn"
-                onClick={() => setShowCreateModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="create-btn"
-                onClick={handleCreateProject}
-                disabled={!newProjectName.trim()}
-              >
-                Create Project
-              </button>
+            <div className="modal-content">
+              <div className="warning-message">
+                <div className="warning-icon">⚠️</div>
+                <div>
+                  <p><strong>Are you sure you want to delete "{projectToDelete?.name}"?</strong></p>
+                  <p>This action cannot be undone. All files will be permanently deleted.</p>
+                  <p className="file-count">
+                    This project contains {projectToDelete?.fileCount || 0} files.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="modal-actions">
+                <button 
+                  className="cancel-btn"
+                  onClick={handleCancelDelete}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="delete-confirm-btn"
+                  onClick={() => handleDeleteProject(projectToDelete?.name)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Project'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-const formatDate = (date) => {
-  if (!date) return 'Unknown';
-  return new Date(date).toLocaleDateString();
 };
 
 // Simple file upload component without project selection
