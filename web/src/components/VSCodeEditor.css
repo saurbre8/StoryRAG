@@ -20,11 +20,11 @@
 .editor-header {
   background: #2d2d30;
   border-bottom: 1px solid #3e3e42;
-  padding: 1.25rem 1rem;
+  padding: 0.75rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 35px;
+  height: 48px;
   flex-shrink: 0;
   width: 100%;
 }
@@ -39,11 +39,15 @@
   background: #3c3c3c;
   border: 1px solid #565656;
   color: #d4d4d4;
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  margin: 0;
 }
 
 .back-btn:hover {
