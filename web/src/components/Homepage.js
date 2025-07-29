@@ -233,7 +233,7 @@ const Homepage = ({ onProjectSelect }) => {
                     <h3>{project.name}</h3>
                     <p>{project.fileCount || 0} files</p>
                     <span className="project-updated">
-                      Updated {formatDate(project.lastModified)}
+                      Updated {formatDate(project.updatedAt)}
                     </span>
                   </div>
                   {/* ADD DELETE BUTTON HERE */}

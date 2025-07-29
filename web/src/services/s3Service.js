@@ -158,6 +158,7 @@ class S3Service {
               name: projectName,
               description: metadata.description || '',
               createdAt: metadata.createdAt || null,
+              updatedAt: metadata.updatedAt || null,
               fileCount: fileCount,
               ...metadata
             };
