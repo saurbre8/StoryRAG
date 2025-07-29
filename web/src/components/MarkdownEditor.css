@@ -49,6 +49,8 @@
 .preview-info {
   display: flex;
   align-items: center;
+  min-height: 20px;
+  padding: 0 0.5rem;
 }
 
 .preview-badge {
@@ -77,6 +79,14 @@
   flex: 1;
   overflow: hidden;
   width: 100%;
+}
+
+.save-status {
+  display: flex !important;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .markdown-textarea {

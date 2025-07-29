@@ -7,7 +7,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import './MarkdownEditor.css';
 
-const MarkdownEditor = ({ file, content, onChange, projectFiles = [] }) => {
+const MarkdownEditor = ({ file, content, onChange, projectFiles = [], saveStatus, saveStatusInfo }) => {
   const [localContent, setLocalContent] = useState(content);
   const [isPreview, setIsPreview] = useState(false);
 
@@ -80,7 +80,7 @@ const MarkdownEditor = ({ file, content, onChange, projectFiles = [] }) => {
     // Custom link renderer for internal wiki-style links
     a({ href, children, ...props }) {
       // Check if it's an internal wiki link
-      if (href && href.startsWith('./') || href.endsWith('.md')) {
+      if (href && (href.startsWith('./') || href.endsWith('.md'))) {
         const fileName = href.replace('./', '').replace('.md', '');
         const matchingFile = projectFiles.find(f => 
           f.name.toLowerCase().includes(fileName.toLowerCase())
@@ -203,11 +203,11 @@ const MarkdownEditor = ({ file, content, onChange, projectFiles = [] }) => {
           👁️ Preview
         </button>
         <div className="tab-divider"></div>
-        <div className="preview-info">
-          <span className="preview-badge">MKDocs Ready</span>
+        <div className="save-status" style={{ color: saveStatusInfo?.color }}>
+          <span className="save-indicator">●</span>
+          {saveStatusInfo?.text}
         </div>
         <div className="file-info">
-          <span className="file-icon">📄</span>
           {file.name}
         </div>
       </div>

@@ -18,7 +18,7 @@ import React from 'react';
 import { useAuth } from 'react-oidc-context';
 import './AuthWrapper.css';
 
-const AuthWrapper = ({ children }) => {
+const AuthWrapper = ({ children, currentProject }) => {
   const auth = useAuth();
 
   // Clean up URL parameters after successful authentication
@@ -121,7 +121,7 @@ const AuthWrapper = ({ children }) => {
       <div className="authenticated-app">
         <header className="app-header-authenticated">
           <div className="header-content">
-            <h1>StoryRAG</h1>
+            <h1>{currentProject ? currentProject.name : 'ChatRAG'}</h1>
             <div className="user-info">
               <span className="user-email">
                 Welcome, {auth.user?.profile?.preferred_username || auth.user?.profile?.username || auth.user?.username || 'User'}
@@ -144,7 +144,7 @@ const AuthWrapper = ({ children }) => {
     <div className="auth-login">
       <div className="login-container">
         <div className="login-header">
-          <h1>StoryRAG</h1>
+          <h1>ChatRAG</h1>
           <p>Secure Markdown File Manager</p>
         </div>
         

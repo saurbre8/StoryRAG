@@ -195,8 +195,7 @@ const Homepage = ({ onProjectSelect }) => {
   return (
     <div className="homepage">
       <header className="homepage-header">
-        <h1>StoryRAG</h1>
-        <p>Your worldbuilding workspace</p>
+        <h1>ChatRAG</h1>
       </header>
 
       <div className="homepage-content">
@@ -230,7 +229,6 @@ const Homepage = ({ onProjectSelect }) => {
                   className="project-card"
                   onClick={() => onProjectSelect(project)}
                 >
-                  <div className="project-icon">📚</div>
                   <div className="project-info">
                     <h3>{project.name}</h3>
                     <p>{project.fileCount || 0} files</p>

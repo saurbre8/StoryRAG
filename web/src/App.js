@@ -39,7 +39,7 @@ function App() {
   };
 
   return (
-    <AuthWrapper>
+    <AuthWrapper currentProject={currentView === 'editor' ? selectedProject : null}>
       <div className={`App vscode-app ${debugMode ? 'debug-panel-visible' : ''}`}>
         {/* Debug Toggle Button - Only visible in editor view */}
         {currentView === 'editor' && (

@@ -736,19 +736,7 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
           <button className="back-btn" onClick={onBackToHome}>
             ← Back to Projects
           </button>
-          <div className="project-title">
-            <span className="project-icon">📚</span>
-            {project.name}
-          </div>
-          
-          {/* Save Status */}
-          {selectedFile && (
-            <div className="save-status" style={{ color: saveStatusInfo.color }}>
-              <span className="save-indicator">●</span>
-              {saveStatusInfo.text}
-            </div>
-          )}
-        </div>
+        </div>   
         
         <div className="header-right">
           {selectedFile && saveStatus !== 'saved' && (
@@ -808,6 +796,8 @@ const VSCodeEditor = ({ project, onBackToHome, debugMode = false, onDebugToggle,
                 content={fileContent}
                 onChange={handleContentChange}
                 projectFiles={files}
+                saveStatus={saveStatus}
+                saveStatusInfo={saveStatusInfo}
               />
             ) : (
               <div className="no-file-selected">

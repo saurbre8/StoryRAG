@@ -22,11 +22,6 @@
   gap: 1rem;
 }
 
-.homepage-header h1::before {
-  content: "📚";
-  font-size: 3rem;
-}
-
 .homepage-header p {
   font-size: 1.2rem;
   color: #858585;
